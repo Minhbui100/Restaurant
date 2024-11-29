@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>DBS 30</title>
+    <link rel="stylesheet" href="./style.css" />
+</head>
+
+<body>
+    <h1>National Park Fast Food Restaurant</h1>
+    <button class="createTable">Create Table</button>
+    <div class="table-container">
+        <!-- Student List Table -->
+        <div>
+            <h2>Bill list</h2>
+            <table id="bill_table" style="display: none">
+                <thead>
+                    <tr>
+                        <th>Bill number</th>
+                        <th>Customer Phone</th>
+                        <th>Location ID</th>
+                        <th>Total</th>
+                        <th>Tip</th>
+                        <th>Tax</th>
+                        <th>Card number</th>
+                        <th>Paid</th>
+                    </tr>
+                </thead>
+                <tbody id="billtable"></tbody>
+            </table>
+        </div>
+        <div>
+            <h2>Order List</h2>
+            <table id="order_table" style="display: none">
+                <thead>
+                    <tr>
+                        <th>Order number</th>
+                        <th>Bill number</th>
+                        <th>Dish</th>
+                        <th>Price</th>
+                        <th>Quantity</th>
+                    </tr>
+                </thead>
+                <tbody id="ordersTable"></tbody>
+            </table>
+        </div>
+        <div>
+            <h2>Card Info</h2>
+            <table id="card_table" style="display: none">
+                <thead>
+                    <tr>
+                        <th>Card number</th>
+                        <th>Name</th>
+                        <th>Experation date</th>
+                        <th>Balance</th>
+                    </tr>
+                </thead>
+                <tbody id="cardsTable"></tbody>
+            </table>
+        </div>
+        <div>
+            <h2>Customer Info</h2>
+            <table id="customer_table" style="display: none">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Phone number</th>
+                        <th>Menbership point</th>
+                    </tr>
+                </thead>
+                <tbody id="customersTable"></tbody>
+            </table>
+        </div>
+
+        <div>
+            <h2>Location List</h2>
+            <table id="location_table" style="display: none">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Name</th>
+                        <th>Address</th>
+                        <th>Manager SSN</th>
+                    </tr>
+                </thead>
+                <tbody id="locationTable"></tbody>
+            </table>
+        </div>
+
+        <div>
+            <h2>Bussiness Transactions</h2>
+            <p>Original balance = $5000.00</p>
+            <table id="transaction_table" style="display: none">
+                <thead>
+                    <tr>
+                        <th>Transaction ID</th>
+                        <th>Amount</th>
+                        <th>From Bank Account / cash</th>
+                        <th>Date</th>
+                        <th>Current Balance</th>
+                    </tr>
+                </thead>
+                <tbody id="transactionTable"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="form-container">
+        <h2>Add Order</h2>
+        <input type="number" id="billNumber" placeholder="Bill number" />
+        <input type="text" id="orderName" placeholder="Dish's name" />
+        <input type="number" id="orderPrice" placeholder="Price" />
+        <input type="number" id="orderQuantity" placeholder="Quantity" />
+        <button id="addOrder">Add Orders</button>
+
+        <h2>Delete Order</h2>
+        <input type="number" id="orderIdDelete" placeholder="Order number" />
+        <button id="deleteOrder">Delete Order</button>
+    </div>
+
+    <div class="form-container">
+        <h2>Payment</h2>
+        <input type="number" id="paymentOrderId" placeholder="Bill number" />
+        <input type="text" id="customerPhone" placeholder="Customer phone" />
+        <input type="number" id="locationID" placeholder="Location ID" />
+        <input type="number" id="tip" placeholder="Tip" />
+        <input type="text" id="cardId" placeholder="Card Number / 'cash'" />
+        <button id="payment">Payment</button>
+    </div>
+
+    <div class="form-container">
+        <h2>Add Customer</h2>
+        <input type="text" id="custName" placeholder="Name" />
+        <input type="text" id="custPhone" placeholder="Phone" />
+        <button id="addCustomer">Add customer</button>
+
+        <h2>Delete Customer</h2>
+        <input type="text" id="custDelete" placeholder="Customer phone" />
+        <button id="deleteCustomer">Delete Customer</button>
+    </div>
+
+    <div class="form-container">
+        <h2>Delete Data Table</h2>
+        <p>Must be in this order</p>
+
+        <button id="deleteAllOrders">Delete All Orders</button>
+        <p></p>
+        <button id="deleteAllBills">Delete All Bills</button>
+        <p></p>
+        <button id="deleteAllTransactions">Delete All Transaction</button>
+        <p></p>
+        <button id="deleteAllCards">Delete All Cards</button>
+        <p></p>
+        <button id="deleteAllCustomers">Delete All Customers</button>
+        <p></p>
+        <button id="deleteAllLocation">Delete All Location</button>
+        <p></p>
+
+
+    </div>
+
+
+    <script type="module" src="./index.js"></script>
+</body>
+
+</html>
