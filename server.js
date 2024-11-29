@@ -128,21 +128,8 @@ tables.forEach(fetchDataAndDisplay);
 // Fetch data from PostgreSQL
 app.get("/bill", async(req, res) => {
     try {
-        await pool.query(`
-            WITH numbered_bill AS (
-                SELECT 
-                    c.*,
-                    ROW_NUMBER() OVER (ORDER BY c.bill_id) AS new_id
-                FROM 
-                    bill c
-            )
-            UPDATE bill
-            SET bill_id = new_id
-            FROM numbered_bill
-            WHERE bill.bill_id = numbered_bill.bill_id;
-        `);
 
-        const result = await pool.query(`select * from bill`);
+        const result = await pool.query(`select * from bill order by bill_id;`);
         res.json(result.rows);
     } catch (err) {
         console.error(err.message);
@@ -166,7 +153,7 @@ app.get("/orders", async(req, res) => {
             WHERE orders.id = numbered_order.id;
         `);
 
-        const result = await pool.query(`select * from orders`);
+        const result = await pool.query(`select * from orders;`);
         res.json(result.rows);
     } catch (err) {
         console.error(err.message);
@@ -176,7 +163,7 @@ app.get("/orders", async(req, res) => {
 
 app.get("/cards", async(req, res) => {
     try {
-        const result = await pool.query("SELECT * FROM cards");
+        const result = await pool.query("SELECT * FROM cards order by name;");
         res.json(result.rows);
     } catch (err) {
         console.error(err.message);
@@ -186,21 +173,7 @@ app.get("/cards", async(req, res) => {
 
 app.get("/customers", async(req, res) => {
     try {
-        await pool.query(`
-            WITH numbered_customer AS (
-                SELECT 
-                    c.*,
-                    ROW_NUMBER() OVER (ORDER BY c.id) AS new_id
-                FROM 
-                    customers c
-            )
-            UPDATE customers
-            SET id = new_id
-            FROM numbered_customer
-            WHERE customers.id = numbered_customer.id;
-        `);
-
-        const result = await pool.query("SELECT * FROM customers");
+        const result = await pool.query("SELECT * FROM customers order by name;");
         res.json(result.rows);
     } catch (err) {
         console.error(err.message);
@@ -210,7 +183,7 @@ app.get("/customers", async(req, res) => {
 
 app.get("/transaction", async(req, res) => {
     try {
-        const result = await pool.query("SELECT * FROM transaction");
+        const result = await pool.query("SELECT * FROM transaction;");
         res.json(result.rows);
     } catch (err) {
         console.error(err.message);
@@ -218,6 +191,28 @@ app.get("/transaction", async(req, res) => {
     }
 });
 
+app.get("/location", async(req, res) => {
+    try {
+        const result = await pool.query(`select * from location order by id;`);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.sendStatus(500);
+    }
+});
+
+app.post("/createtable", async(req, res) => {
+    const sql = req.body.sql;
+    try {
+        const result = await pool.query(sql);
+        res.status(200).json({ success: true, result: result });
+    } catch (error) {
+        res.status(500).json({ success: false, error: error.message });
+        console.log("here1", error.message);
+    }
+});
+
+//add order
 app.post("/orders", async(req, res) => {
     const { id, name, price, quantity } = req.body;
 
@@ -250,7 +245,7 @@ app.post("/orders", async(req, res) => {
         await pool.query(
             "UPDATE Bill SET total = (SELECT COALESCE(SUM(price * quantity), 0) FROM Orders WHERE Orders.bill_id = Bill.bill_id);"
         );
-        await pool.query("UPDATE Bill SET tax = total * 0.0825;");
+        await pool.query("UPDATE Bill SET tax = total * 0.0625;");
         res.sendStatus(201); // Successfully created
     } catch (err) {
         console.error(err.message);
@@ -258,17 +253,7 @@ app.post("/orders", async(req, res) => {
     }
 });
 
-app.post("/createtable", async(req, res) => {
-    const sql = req.body.sql;
-    try {
-        const result = await pool.query(sql);
-        res.status(200).json({ success: true, result: result });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-        console.log("here1", error.message);
-    }
-});
-
+//delete order
 app.delete("/orders/:id", async(req, res) => {
     const { id } = req.params;
     try {
@@ -307,56 +292,10 @@ app.delete("/orders/:id", async(req, res) => {
     }
 });
 
-//add customer
-app.post("/customers", async(req, res) => {
-    const { name, phone } = req.body;
-
-    // Check if both id and name are provided
-    if (!name || !phone) {
-        return res.status(400).send("Name and phone are required");
-    }
-
-    try {
-        const billCheck = await pool.query(
-            "SELECT 1 FROM customers WHERE phone = $1", [phone]
-        );
-        if (billCheck.rowCount === 1) {
-            return res.status(400).send("This phone number is already used");
-        }
-        await pool.query("INSERT INTO customers (name, phone) VALUES ($1, $2)", [
-            name,
-            phone,
-        ]);
-        res.sendStatus(201); // Successfully created
-    } catch (err) {
-        console.error(err.message);
-        res.sendStatus(500);
-    }
-});
-
-//delete customer
-app.delete("/customers/:id", async(req, res) => {
-    const { id } = req.params;
-    try {
-        const result = await pool.query("SELECT id FROM customers WHERE id = $1", [
-            id,
-        ]);
-        if (result.rowCount === 0) {
-            return res.status(404).json({ error: "ID not found" });
-        }
-
-        await pool.query("DELETE FROM customers WHERE id = $1", [id]);
-        res.sendStatus(200);
-    } catch (err) {
-        console.error(err.message);
-        res.sendStatus(500);
-    }
-});
-
-//transaction
+//Payment
 app.put("/bill/:bill_id", async(req, res) => {
     const { bill_id } = req.params;
-    const { customerId, tip, cardId } = req.body;
+    const { customerPhone, locationId, tip, cardId } = req.body;
 
     try {
         // Retrieve the current bill details including total, tip, and tax
@@ -378,7 +317,7 @@ app.put("/bill/:bill_id", async(req, res) => {
 
         // Update the bill to mark it as paid
         await pool.query(
-            "UPDATE bill SET cust_id = $1, tip=$2, card_id = $3, paid = TRUE WHERE bill_id = $4", [customerId, tip, cardId, bill_id]
+            "UPDATE bill SET cust_phone = $1, tip=$2, card_id = $3, paid = TRUE, location_id=$4 WHERE bill_id = $5", [customerPhone, tip, cardId, locationId, bill_id]
         );
 
         // Calculate the total amount to deduct from the card balance
@@ -388,17 +327,18 @@ app.put("/bill/:bill_id", async(req, res) => {
 
         // Update the customer's membership points
         await pool.query(
-            "UPDATE customers SET membership_point = membership_point + 1 WHERE id = $1", [customerId]
+            "UPDATE customers SET membership_point = membership_point + 1 WHERE phone = $1", [customerPhone]
         );
 
         // Deduct the total amount from the card balance
-        await pool.query("UPDATE cards SET balance = balance - $1 WHERE id = $2", [
-            totalAmount,
-            cardId,
-        ]);
+        if (cardId != "cash")
+            await pool.query("UPDATE cards SET balance = balance - $1 WHERE id = $2", [
+                totalAmount,
+                cardId,
+            ]);
 
         const businessBalanceResult = await pool.query(
-            "SELECT business_balance FROM transaction ORDER BY id DESC LIMIT 1"
+            "SELECT business_balance FROM transaction ORDER BY tran_id DESC LIMIT 1"
         );
 
         const currentBusinessBalance =
@@ -413,8 +353,8 @@ app.put("/bill/:bill_id", async(req, res) => {
 
         // Insert the transaction record
         await pool.query(
-            `INSERT INTO transaction (bill_id, total, from_bankacct, business_balance) 
-             VALUES ($1, $2, $3, $4)`, [bill_id, formattedTotalAmount, cardId, newcurrentBusinessBalance]
+            `INSERT INTO transaction (total, from_bankacct, business_balance) 
+             VALUES ($1, $2, $3)`, [formattedTotalAmount, cardId, newcurrentBusinessBalance]
         );
 
         res.sendStatus(200);
@@ -424,94 +364,21 @@ app.put("/bill/:bill_id", async(req, res) => {
     }
 });
 
-app.delete("/customers", async(req, res) => {
-    try {
-        const result = await pool.query("DELETE FROM customers");
-
-        res.sendStatus(200); // Send OK response
-    } catch (err) {
-        console.error(err.message);
-        res.status(500).json({ error: err.message }); // Internal server error
-    }
-});
-
-app.delete("/bill", async(req, res) => {
-    try {
-        await pool.query("DELETE FROM bill;");
-        res.sendStatus(200); // Send OK response
-    } catch (err) {
-        console.error("Error deleting rows from bill table:", err.message);
-        res.status(500).json({ error: err.message }); // Return detailed error
-    }
-});
-
-app.delete("/orders", async(req, res) => {
-    try {
-        const result = await pool.query(
-            "SELECT 1 FROM bill WHERE paid = true LIMIT 1"
-        );
-
-        if (result.rowCount > 0) {
-            // If there are any paid bills, return a warning
-            return res
-                .status(500)
-                .json({ error: "Cannot delete orders because there are paid bills." });
-        }
-
-        await pool.query("DELETE FROM orders;");
-        res.sendStatus(200); // Send OK response
-    } catch (err) {
-        console.error("Error deleting rows from orders table:", err.message);
-        res.status(500).json({ error: err.message }); // Return detailed error
-    }
-});
-
-app.delete("/cards", async(req, res) => {
-    try {
-        await pool.query("DELETE FROM cards;");
-        res.sendStatus(200); // Send OK response
-    } catch (err) {
-        console.error("Error deleting rows from cards table:", err.message);
-        res.status(500).json({ error: err.message }); // Return detailed error
-    }
-});
-
-app.delete("/transaction", async(req, res) => {
-    try {
-        await pool.query("DELETE FROM transaction;");
-        res.sendStatus(200); // Send OK response
-    } catch (err) {
-        console.error("Error deleting rows from transaction table:", err.message);
-        res.status(500).json({ error: err.message }); // Return detailed error
-    }
-});
-
-/*
-
-// Update student name by ID
-app.put('/students/:id', async(req, res) => {
-    const { id } = req.params;
-    const { name } = req.body;
-    try {
-        await pool.query('UPDATE students SET name = $1 WHERE id = $2', [name, id]);
-        res.sendStatus(200);
-    } catch (err) {
-        console.error(err.message);
-        res.sendStatus(500);
-    }
-});
-
-// Add a new student
-app.post('/students', async(req, res) => {
-    const { id, name } = req.body;
-
+//add customer
+app.post("/customers", async(req, res) => {
+    const { name, phone } = req.body;
     // Check if both id and name are provided
-    if (!id || !name) {
-        return res.status(400).json({ error: "ID and name are required" });
+    if (!name || !phone) {
+        return res.status(400).send("Name and phone are required");
     }
-
     try {
-        await pool.query('INSERT INTO students (id, name) VALUES ($1, $2)', [id, name]);
+        const billCheck = await pool.query(
+            "SELECT 1 FROM customers WHERE phone = $1", [phone]
+        );
+        if (billCheck.rowCount === 1) {
+            return res.status(400).send("This phone number is already used.");
+        }
+        await pool.query("INSERT INTO customers (name, phone) VALUES ($1, $2)", [name, phone]);
         res.sendStatus(201); // Successfully created
     } catch (err) {
         console.error(err.message);
@@ -519,19 +386,89 @@ app.post('/students', async(req, res) => {
     }
 });
 
-// Delete a student by ID
-app.delete('/students/:id', async(req, res) => {
-    const { id } = req.params;
+//delete customer
+app.delete("/customers/:phone", async(req, res) => {
+    const { phone } = req.params;
     try {
-        await pool.query('DELETE FROM students WHERE id = $1', [id]);
-        res.sendStatus(200);
+        const result = await pool.query("SELECT phone FROM customers WHERE phone = $1", [phone]);
+        if (result.rowCount === 0) {
+            return res.sendStatus(400);
+        }
+        await pool.query("DELETE FROM customers WHERE phone = $1", [phone]);
+        res.sendStatus(201); // Successfully 
     } catch (err) {
         console.error(err.message);
         res.sendStatus(500);
     }
 });
-*/
-// Start the server
+
+//delete all customer
+app.delete("/customers", async(req, res) => {
+    try {
+        const result = await pool.query("delete from customers;");
+
+        res.sendStatus(200); // Send OK response
+    } catch (err) {
+        console.error("Error deleting rows from customer table:", err.message);
+        res.status(500).json({ error: err.message }); // Internal server error
+    }
+});
+
+//delete all bill
+app.delete("/bill", async(req, res) => {
+    try {
+        await pool.query("delete from bill;");
+        res.sendStatus(200); // Send OK response
+    } catch (err) {
+        console.error("Error deleting rows from bill table:", err.message);
+        res.status(500).json({ error: err.message }); // Return detailed error
+    }
+});
+
+//delete all order
+app.delete("/orders", async(req, res) => {
+    try {
+        await pool.query("delete from orders;");
+        res.sendStatus(200); // Send OK response
+    } catch (err) {
+        console.error("Error deleting rows from order table:", err.message);
+        res.status(500).json({ error: err.message }); // Return detailed error
+    }
+});
+
+//delete all card
+app.delete("/cards", async(req, res) => {
+    try {
+        await pool.query("delete from cards;");
+        res.sendStatus(200); // Send OK response
+    } catch (err) {
+        console.error("Error deleting rows from card table:", err.message);
+        res.status(500).json({ error: err.message }); // Return detailed error
+    }
+});
+
+//delete all transaction
+app.delete("/transaction", async(req, res) => {
+    try {
+        await pool.query("delete from transaction;");
+        res.sendStatus(200); // Send OK response
+    } catch (err) {
+        console.error("Error deleting rows from transaction table:", err.message);
+        res.status(500).json({ error: err.message }); // Return detailed error
+    }
+});
+
+//delete all location
+app.delete("/location", async(req, res) => {
+    try {
+        await pool.query("delete from location;");
+        res.sendStatus(200); // Send OK response
+    } catch (err) {
+        console.error("Error deleting rows from location table:", err.message);
+        res.status(500).json({ error: err.message }); // Return detailed error
+    }
+});
+
 app.listen(3000, () => {
     console.log("Server is running on port 3000 - localhost:3000 ");
 });
