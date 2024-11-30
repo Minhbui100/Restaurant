@@ -6,6 +6,7 @@ const cardTable = document.getElementById("card_table");
 const customerTable = document.getElementById("customer_table");
 const transactionTable = document.getElementById("transaction_table");
 const locationTable = document.getElementById("location_table");
+const menuTable = document.getElementById("menu_table");
 const createTableBtn = document.querySelector(".createTable");
 
 const addOrderBtn = document.getElementById("addOrder");
@@ -25,7 +26,7 @@ const billTableSql = `
 CREATE TABLE IF NOT EXISTS bill (
     bill_id integer PRIMARY KEY,
     cust_phone VARCHAR(15) REFERENCES customers(phone),  -- Added foreign key to customers
-    location_id integer REFERENCES location(id),
+    location_name varchar(45) REFERENCES location(name),
     total NUMERIC(10, 2) DEFAULT 0,
     tip NUMERIC(10, 2) DEFAULT 0,
     tax NUMERIC(10, 2) DEFAULT 0,
@@ -33,42 +34,40 @@ CREATE TABLE IF NOT EXISTS bill (
     paid BOOLEAN DEFAULT false
 );
 
-INSERT INTO bill (bill_id, cust_phone, location_id, total, tip, tax, card_id, paid) VALUES
-(1, '8901234567', 2, 41.08, 12.00, 3.39, '8901234589012345', TRUE),
-(2, '5678901234', 3, 84.98, 10.00, 7.01, '5678901256789012', TRUE),
-(3, NULL, NULL, 44.22, 0.00, 3.65, NULL, FALSE),
-(4, '2345678901', 1, 28.99, 10.00, 2.39, '4567890145678901', TRUE),
-(5, '1234567890', 8, 19.55, 2.00, 1.61, '2345678923456789', TRUE),
-(6, NULL, NULL, 53.97, 0.00, 4.45, NULL, FALSE),
-(7, '0123456789', 7, 37.75, 8.00, 3.11, '7890123478901234', TRUE);
+INSERT INTO bill (bill_id, cust_phone, location_name, total, tip, tax, card_id, paid) VALUES
+(101, '8901234567', 'Big Bend Fast Food', 35.96, 3.00, 2.25, '8901234589012345', TRUE),
+(102, '5678901234', 'Guadalupe Mountains Fast Food', 71.96, 4.00, 4.50, '5678901256789012', TRUE),
+(103, NULL, NULL, 32.97, 0.00, 2.06, NULL, FALSE),
+(104, '2345678901', 'Zion Fast Food', 53.95, 5.00, 3.37, '4567890145678901', TRUE),
+(105, '1234567890', 'Zion Fast Food', 40.97, 2.00, 2.56, '2345678923456789', TRUE),
+(106, NULL, NULL, 23.97, 0.00, 1.50, NULL, FALSE),
+(107, '0123456789', 'Yosemite Fast Food', 43.97, 2.00, 2.75, '7890123478901234', TRUE);
 `;
 
 const orderTableSql = `
 CREATE TABLE IF NOT EXISTS orders (
     id SERIAL PRIMARY KEY,
     bill_id INTEGER REFERENCES bill(bill_id),  -- Foreign key to bill
-    name VARCHAR(100) NOT NULL,
+    name VARCHAR(50) REFERENCES menu(name),
     price NUMERIC(10, 2) NOT NULL,
     quantity INTEGER NOT NULL CHECK (quantity > 0)
 );
 
 INSERT INTO orders (bill_id, name, price, quantity) VALUES
-(1, 'Pizza', 17.99, 2),
-(1, 'Soda', 2.55, 2),
-(2, 'Chicken wings', 15.99, 1),
-(2, 'Burger', 8.00, 3),
-(2, 'Sparkling water', 5.00, 5),
-(3, 'Fried fish', 12.11, 2),
-(4, 'Combo 1', 19.99, 1),
-(3, 'Cheese burger', 10.00, 2),
-(2, 'Combo 1', 19.99, 1),
-(4, 'Fries', 4.50, 2),
-(5, 'Nuggets', 8.50, 2),
-(5, 'Soda', 2.55, 1),
-(6, 'Combo 2', 17.99, 3),
-(7, 'Jumbo Pizza', 25.00, 1),
-(7, 'Sprite', 2.55, 5);
-
+(101, 'Caesar Salad', 9.99, 2),
+(101, 'Chocolate Lava Cake', 7.99, 2),
+(102, 'Grilled Salmon', 18.99, 3),
+(102, 'Spaghetti Carbonara', 14.99, 1),
+(103, 'Caesar Salad', 9.99, 2),
+(103, 'Cheeseburger Deluxe', 12.99, 1),
+(104, 'Cheeseburger Deluxe', 12.99, 2),
+(104, 'Chocolate Lava Cake', 7.99, 1),
+(104, 'Caesar Salad', 9.99, 2),
+(105, 'Margherita Pizza', 13.99, 2),
+(105, 'Cheeseburger Deluxe', 12.99, 1),
+(106, 'Chocolate Lava Cake', 7.99, 3),
+(107, 'Margherita Pizza', 13.99, 1),
+(107, 'Spaghetti Carbonara', 14.99, 2);
 `;
 
 const cardTableSql = `
@@ -104,11 +103,11 @@ CREATE TABLE IF NOT EXISTS transaction (
 );
 
 INSERT INTO transaction (total, from_bankacct, business_balance) VALUES
-(101.99, '5678901256789012', 5101.99),
-(41.38, '4567890145678901', 5143.37),
-(56.47, '8901234589012345', 5199.84),
-(23.16, '2345678923456789', 5223.00),
-(48.86, '7890123478901234', 5271.86);
+(80.46, '5678901256789012', 5080.46),
+(62.32, '4567890145678901', 5142.78),
+(41.21, '8901234589012345', 5183.99),
+(45.53, '2345678923456789', 5229.52),
+(48.72, '7890123478901234', 5278.24);
 
 `;
 
@@ -134,22 +133,37 @@ INSERT INTO customers (name, phone, membership_point) VALUES
 
 const locaTableSql = `
 CREATE TABLE IF NOT EXISTS location (
-    id serial primary key,
-    name VARCHAR(45),
-    address varchar(120),
-    manager_ssn char(9)
+    name VARCHAR(45) primary key,
+    address varchar(120)
 );
 
-INSERT INTO location (name, address, manager_ssn) VALUES
-('Big Bend Fast Food', '9 Basin Rural Station Big Bend National Park, TX ', '488601477'),
-('Yosemite Fast Food', '1206 Village Dr Yosemite Village, Yosemite National Park, CA ', '912223455'),
-('Guadalupe Mountains Fast Food', '4010 National Parks Hwy Carlsbad, NM', '255846333'),
-('Carlsbad Caverns Fast Food', '24 Carlsbad Cavern Highway, Carlsbad Caverns National Park, NM', '444225339'),
-('Arches Fast Food', '617 S Highway 191 Moab, UT', '852463100'),
-('Zion Fast Food', '999 S Cross Hollow Rd Cedar City, UT', '777842660'),
-('Rocky Mountain Fast Food', '5046 Alpine Visitors Center, Rocky Mountain National Park, CO', '521445936'),
-('Redwood Fast Food', '2095 US Highway 199, Hiouchi, CA', '456558023');
+INSERT INTO location (name, address) VALUES
+('Big Bend Fast Food', '9 Basin Rural Station Big Bend National Park, TX'),
+('Yosemite Fast Food', '1206 Village Dr Yosemite Village, Yosemite National Park, CA'),
+('Guadalupe Mountains Fast Food', '4010 National Parks Hwy Carlsbad, NM'),
+('Carlsbad Caverns Fast Food', '24 Carlsbad Cavern Highway, Carlsbad Caverns National Park, NM'),
+('Arches Fast Food', '617 S Highway 191 Moab, UT'),
+('Zion Fast Food', '999 S Cross Hollow Rd Cedar City, UT'),
+('Rocky Mountain Fast Food', '5046 Alpine Visitors Center, Rocky Mountain National Park, CO'),
+('Redwood Fast Food', '2095 US Highway 199, Hiouchi, CA');
 `;
+
+const menuTableSql = `
+CREATE TABLE menu(
+    name VARCHAR(50) PRIMARY KEY,
+    price DECIMAL(10, 2) NOT NULL,
+    image VARCHAR(700),
+    status VARCHAR(20) CHECK(Status IN('Available', 'Out of Stock'))
+);
+INSERT INTO menu(Name, Price, Image, Status) VALUES
+    ('Grilled Salmon', 18.99, 'https://www.cookingclassy.com/wp-content/uploads/2018/05/grilled-salmon-3.jpg', 'Available'),
+    ('Spaghetti Carbonara', 14.99, 'https://bellyfull.net/wp-content/uploads/2023/02/Spaghetti-Carbonara-blog-1.jpg', 'Available'),
+    ('Caesar Salad', 9.99, 'https://www.allrecipes.com/thmb/JTW0AIVY5PFxqLrf_-CDzT4OZQY=/0x512/filters:no_upscale():max_bytes(150000):strip_icc()/229063-Classic-Restaurant-Caesar-Salad-ddmfs-4x3-231-89bafa5e54dd4a8c933cf2a5f9f12a6f.jpg', 'Out of Stock'),
+    ('Cheeseburger Deluxe', 12.99, 'https://www.tysonfoodservice.com/adobe/dynamicmedia/deliver/dm-aid--92a52f1f-9d97-4118-93d0-a54d82e85a68/deluxe-cheeseburger-pickles-onion-pub-burger-137353-768x522.jpg?preferwebp=true&width=1200&quality=75', 'Available'),
+    ('Margherita Pizza', 13.99, 'https://foodbyjonister.com/wp-content/uploads/2020/01/MargheritaPizza.jpg', 'Available'),
+    ('Chocolate Lava Cake', 7.99, 'https://www.melskitchencafe.com/wp-content/uploads/2023/01/updated-lava-cakes7.jpg', 'Available');
+`;
+
 
 
 
@@ -160,9 +174,11 @@ const displayAllTables = function() {
     orderTable.style.display = "block";
     transactionTable.style.display = "block";
     locationTable.style.display = "block";
+    menuTable.style.display = "block";
 };
 
 window.onload = async function() {
+    await utilities.fetchMenu();
     await utilities.fetchCustomers();
     await utilities.fetchCards();
     await utilities.fetchLocation();
@@ -200,6 +216,9 @@ async function createTable(sql) {
 
 createTableBtn.addEventListener("click", async() => {
     if (customerTable.style.display != "block") {
+        await createTable(menuTableSql);
+        await utilities.fetchMenu();
+
         await createTable(customerSql);
         await utilities.fetchCustomers();
 

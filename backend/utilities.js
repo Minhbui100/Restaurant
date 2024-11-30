@@ -8,7 +8,7 @@ async function fetchBill() {
         const row = `<tr>
             <td>${bills.bill_id}</td>
             <td>${bills.cust_phone !== null ? bills.cust_phone : ""}</td>
-            <td>${bills.location_id !== null ? bills.location_id : ""}</td>
+            <td>${bills.location_name !== null ? bills.location_name : ""}</td>
             <td>${bills.total}</td>
             <td>${bills.tip !== null ? bills.tip : ""}</td>
             <td>${bills.tax}</td>
@@ -106,11 +106,25 @@ async function fetchLocation() {
     table.innerHTML = "";
     location.forEach((local) => {
         const row = `<tr>
-                      <td>${local.id}</td>
                       <td>${local.name}</td>
                       <td>${local.address}</td>  
-                      <td>${local.manager_ssn}</td>                                
                    </tr>`;
+        table.innerHTML += row;
+    });
+}
+
+async function fetchMenu() {
+    const response = await fetch("http://localhost:3000/menu");
+    const menu = await response.json();
+    const table = document.getElementById("menuTable");
+    table.innerHTML = "";
+    menu.forEach((dish) => {
+        const row = `<tr>
+                        <td><img src="${dish.image}" alt="${dish.name}" width="100" height="100"></td>    
+                        <td>${dish.name}</td>  
+                        <td>${dish.price}</td>  
+                        <td>${dish.status}</td>            
+                     </tr>`;
         table.innerHTML += row;
     });
 }
@@ -150,45 +164,46 @@ function displayWarning(message) {
 }
 
 async function addOrders() {
-    const id = document.getElementById("billNumber").value;
-    const name = document.getElementById("orderName").value;
-    const price = document.getElementById("orderPrice").value;
-    const quantity = document.getElementById("orderQuantity").value;
+    const orders = [];
+    const dishRows = document.querySelectorAll(".dish-row");
+
+    dishRows.forEach((row) => {
+        const dishName = row.querySelector(".dish-name").textContent;
+        const quantityInput = row.querySelector(".quantity-input");
+        const quantity = parseInt(quantityInput.value);
+
+        if (quantity && quantity > 0) {
+            orders.push({ name: dishName, quantity });
+        }
+    });
+
+    if (orders.length === 0) {
+        alert("Please select at least one dish with a valid quantity.");
+        return;
+    }
 
     try {
         const response = await fetch("http://localhost:3000/orders", {
             method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                id,
-                name,
-                price,
-                quantity,
-            }),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ orders }),
         });
 
-        if (response.status === 400) {
-            // Read and display the warning message from the response
-            const warningMessage = await response.text();
-            displayWarning(warningMessage);
-        } else if (response.ok) {
-            // Clear input fields after successful submission
-
+        if (response.status === 201) {
+            document.querySelectorAll(".quantity-input").forEach((input) => (input.value = ""));
             await fetchOrders();
             await fetchBill();
         } else {
-            console.error("An error occurred:", response.statusText);
+            const errorMessage = await response.text();
+            alert(`Error: ${errorMessage}`);
         }
-        document.getElementById("billNumber").value = "";
-        document.getElementById("orderName").value = "";
-        document.getElementById("orderPrice").value = "";
-        document.getElementById("orderQuantity").value = "";
     } catch (error) {
         console.error("Fetch error:", error);
+        alert("An unexpected error occurred.");
     }
 }
+
+
 
 async function deleteOrders() {
     const id = document.getElementById("orderIdDelete").value;
@@ -212,7 +227,7 @@ async function deleteOrders() {
 async function payment() {
     const orderId = document.getElementById("paymentOrderId").value;
     const customerPhone = document.getElementById("customerPhone").value;
-    const locationId = document.getElementById("locationID").value;
+    const locationName = document.querySelector('input[name="location"]:checked');
     const tip = document.getElementById("tip").value;
     const cardId = document.getElementById("cardId").value;
 
@@ -224,7 +239,7 @@ async function payment() {
             },
             body: JSON.stringify({
                 customerPhone,
-                locationId,
+                locationName: locationName.value,
                 tip,
                 cardId,
             }),
@@ -249,9 +264,13 @@ async function payment() {
         await fetchCustomers();
         document.getElementById("paymentOrderId").value = "";
         document.getElementById("customerPhone").value = "";
-        document.getElementById("locationID").value = "";
         document.getElementById("tip").value = "";
         document.getElementById("cardId").value = "";
+        const radioButtons = document.querySelectorAll('input[name="location"]');
+        radioButtons.forEach((radio) => {
+            radio.checked = false;
+        });
+
     } catch (error) {
         console.error("Fetch error:", error);
     }
@@ -434,6 +453,7 @@ export {
     fetchCustomers,
     fetchTransaction,
     fetchLocation,
+    fetchMenu,
     displayWarning,
     addOrders,
     deleteOrders,

@@ -59,3 +59,10 @@ Card number (search on Card Table): 0123456701234567
 --> In Transaction Table, it's updated bill number 8's information. Current business balance = balance+bill.total+bill.tip+bill.tax
 
 Note: if you want to pay for bill number 1, which is already paid, Warning: Can not process because the bill number 1 is already paid
+
+
+\c postgres;
+drop database restaurant;
+create database restaurant;
+\c restaurant;
+
