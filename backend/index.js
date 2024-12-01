@@ -17,6 +17,8 @@ const deleteCustomerBtn = document.getElementById("deleteCustomer");
 const addMenuBtn = document.getElementById("addMenu");
 const deleteMenuBtn = document.getElementById("deleteMenu");
 const statusMenuBtn = document.getElementById("setStatus");
+const addCardBtn = document.getElementById("addCard");
+
 
 const deleteAllBillsBtn = document.getElementById("deleteAllBills");
 const deleteAllOrdersBtn = document.getElementById("deleteAllOrders");
@@ -290,6 +292,9 @@ deleteMenuBtn.addEventListener("click", async() => {
 });
 statusMenuBtn.addEventListener("click", async() => {
     await utilities.setMenuStatus();
+});
+addCardBtn.addEventListener("click", async() => {
+    await utilities.addCard();
 });
 
 
