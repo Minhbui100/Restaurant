@@ -10,6 +10,48 @@ body {
     position: relative;
 }
 
+.big-table-container {
+    display: flex;
+    flex-direction: column;
+    /* Stack chart and table vertically */
+    justify-content: center;
+    /* Center content vertically */
+    align-items: center;
+    /* Center content horizontally */
+    text-align: center;
+    padding: 20px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    width: 80%;
+    /* You can adjust this as needed */
+    margin: 0 auto;
+    /* Center the container on the page */
+}
+
+
+/* Adjust the size of the canvas (chart) */
+
+#businessChart {
+    width: 100%;
+    max-width: 1200px;
+    /* Set the max width for the chart */
+    max-height: 600px;
+    /* Set the height of the chart */
+    margin-bottom: 20px;
+    /* Add some space below the chart */
+    background-color: #fff;
+}
+
+.container {
+    max-width: 800px;
+    margin: 50px auto;
+    padding: 20px;
+    background-color: #fff;
+    border-radius: 10px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    text-align: center;
+}
+
 h1 {
     color: #ff7f50;
     text-shadow: 2px 2px 5px rgba(0, 0, 0, 0.2);
@@ -46,13 +88,76 @@ p {
     }
 }
 
+
+/* Ensure the container takes up the full width and centers the content */
+
 .table-container {
     display: flex;
-    justify-content: space-around;
-    margin-top: 30px;
-    flex-wrap: wrap;
-    gap: 20px;
+    justify-content: center;
+    /* Horizontally center the content */
+    align-items: center;
+    /* Vertically center if necessary */
+    padding: 20px;
+    width: 100%;
 }
+
+
+/* Table Styling */
+
+#menu_table {
+    width: 80%;
+    /* You can adjust the width as per your preference */
+    max-width: 1200px;
+    /* Optional: Prevents the table from becoming too wide on large screens */
+    border-collapse: collapse;
+    margin: 0 auto;
+    /* This centers the table horizontally */
+    margin-top: 20px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+
+/* Header Styling */
+
+table {
+    margin: 20px auto;
+    /* Centers the table horizontally */
+    width: 80%;
+    /* Set the table width */
+}
+
+#menu_table th {
+    background: linear-gradient(90deg, #ff7f50, #ff6347);
+    color: white;
+    padding: 15px;
+    text-align: center;
+    font-size: 1.2em;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+
+/* Cell Styling */
+
+#menu_table td {
+    padding: 15px;
+    text-align: center;
+    border-bottom: 1px solid #ddd;
+    font-size: 1.1em;
+    color: #333;
+    transition: all 0.3s ease;
+}
+
+
+/* Hover Effect for Rows */
+
+#menu_table tr:hover {
+    background-color: #f1f1f1;
+    transform: scale(1.02);
+}
+
+
+/* Alternate Row Styling */
 
 table {
     border-collapse: collapse;
@@ -131,6 +236,71 @@ input {
     border-radius: 5px;
     display: inline-block;
     margin-bottom: 10px;
+}
+
+input[type="radio"] {
+    appearance: none;
+    /* Remove default styling */
+    width: 20px;
+    height: 20px;
+    border: 2px solid #ff7f50;
+    /* Blue border */
+    border-radius: 50%;
+    /* Circle shape */
+    outline: none;
+    cursor: pointer;
+    transition: 0.3s ease-in-out;
+    margin-right: 10px;
+    vertical-align: middle;
+}
+
+input[type="radio"]:checked {
+    background-color: #ff7f50;
+    /* Blue fill when selected */
+    border-color: #ff7f50;
+    /* Darker border */
+}
+
+label {
+    font-size: 16px;
+    color: #333;
+    /* Dark text color */
+    cursor: pointer;
+    transition: 0.3s;
+    margin-bottom: 10px;
+    display: inline-block;
+}
+
+
+/* Hover effect for the labels */
+
+label:hover {
+    color: #007bff;
+    /* Change text color on hover */
+    font-weight: bold;
+    /* Bold text */
+}
+
+
+/* Hover effect for the button */
+
+button#setStatus {
+    margin-top: 10px;
+    padding: 10px 20px;
+    background-color: #ff7f50;
+    border: none;
+    border-radius: 5px;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: 0.3s;
+}
+
+button#setStatus:hover {
+    background-color: #ff7f50;
+    /* Darker blue */
+    box-shadow: 0px 4px 8px rgba(0, 0, 0, 0.2);
+    /* Add subtle shadow */
 }
 
 #locationOptions label {
@@ -216,4 +386,123 @@ form#locationName label:hover {
     text-align: center;
     border: 1px solid #ccc;
     border-radius: 4px;
+}
+
+.dashboard {
+    display: flex;
+    justify-content: space-around;
+    background-color: #f4f4f4;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+.dashboard-tab {
+    padding: 10px 20px;
+    border: none;
+    background-color: #007bff;
+    color: white;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.dashboard-tab:hover {
+    background-color: #0056b3;
+}
+
+.forms-container {
+    display: flex;
+    justify-content: center;
+    padding: 20px;
+    /* Reduced padding to decrease the space */
+    margin-top: 0;
+    /* Remove the large gap at the top */
+    width: 100%;
+    /* Ensures the forms-container takes the full width */
+}
+
+.form-container {
+    display: none;
+    width: 100%;
+    max-width: 1200px;
+    /* Optional: Limit max width if needed */
+    margin: 0 auto;
+    /* Center the form container */
+    padding: 20px;
+    overflow-x: auto;
+    animation: fadeIn 2s ease;
+}
+
+.hidden {
+    display: none;
+}
+
+.form-container.active {
+    display: block;
+    width: auto;
+    margin: 0 auto;
+    padding: 20px;
+    overflow-x: auto;
+    max-width: 1200px;
+    /* Optional: Limit max width */
+    height: auto;
+    /* Let the height adjust based on content */
+}
+
+#business_overview_table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+    font-family: 'Arial', sans-serif;
+    font-size: 1.1em;
+    background-color: #ffffff;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    /* Slight shadow for floating effect */
+}
+
+#business_overview_table th,
+#business_overview_table td {
+    border: 1px solid #ddd;
+    padding: 15px;
+    text-align: center;
+    transition: background-color 0.3s ease;
+    /* Smooth hover effect */
+}
+
+#business_overview_table th {
+    background-color: #8B0000;
+    /* Dark Red */
+    color: white;
+    /* White text for better contrast */
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-size: 1.2em;
+}
+
+#business_overview_table tr:nth-child(even) {
+    background-color: #f2f2f2;
+    /* Light gray for alternate rows */
+}
+
+#business_overview_table tr:nth-child(odd) {
+    background-color: #ffffff;
+}
+
+#business_overview_table tr:hover {
+    background-color: #ffe6e6;
+    /* Soft red hover effect */
+}
+
+#business_overview_table td {
+    font-weight: 500;
+    color: #333333;
+    /* Darker text for better readability */
+}
+
+#business_overview_table caption {
+    font-size: 1.5em;
+    margin-bottom: 10px;
+    color: #333333;
+    font-weight: bold;
 }
