@@ -129,6 +129,18 @@ async function fetchTransaction() {
             }
         }
     });
+    const table = document.getElementById("transactionTable");
+    table.innerHTML = "";
+    transactions.forEach((tran) => {
+        const row = `<tr>
+                        <td>${tran.tran_id}</td>
+                        <td>${tran.total}</td>
+                        <td>${tran.from_bankacct}</td> 
+                        <td>${tran.tdate}</td>
+                        <td>${tran.business_balance}</td>                               
+                     </tr>`;
+        table.innerHTML += row;
+    });
 }
 
 
