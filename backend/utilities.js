@@ -451,6 +451,45 @@ async function setMenuStatus() {
     }
 }
 
+async function addCard() {
+    const id = document.getElementById("cardID").value;
+    const name = document.getElementById("cardName").value;
+    const date = document.getElementById("cardDate").value;
+    const balance = document.getElementById("cardBalance").value;
+
+
+    try {
+        const response = await fetch("http://localhost:3000/cards", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                id,
+                name,
+                date,
+                balance
+            }),
+        });
+
+        if (response.status === 400) {
+            // Read and display the warning message from the response
+            const warningMessage = await response.text();
+            displayWarning("warningMessage");
+        } else if (response.ok) {
+            await fetchCards();
+        } else {
+            console.error("An error occurred:", response.statusText);
+        }
+        document.getElementById("cardID").value = "";
+        document.getElementById("cardName").value = "";
+        document.getElementById("cardDate").value = "";
+        document.getElementById("cardBalance").value = "";
+    } catch (error) {
+        console.error("Fetch error:", error);
+    }
+}
+
 
 async function deleteAllCustomers() {
     try {
@@ -627,7 +666,8 @@ export {
     deleteAllTransactions,
     deleteAllLocation,
     overallview,
-    setMenuStatus
+    setMenuStatus,
+    addCard
 
 
 };
