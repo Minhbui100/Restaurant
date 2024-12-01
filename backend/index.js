@@ -14,6 +14,9 @@ const deleteOrderBtn = document.getElementById("deleteOrder");
 const paymentBtn = document.getElementById("payment");
 const addCustomerBtn = document.getElementById("addCustomer");
 const deleteCustomerBtn = document.getElementById("deleteCustomer");
+const addMenuBtn = document.getElementById("addMenu");
+const deleteMenuBtn = document.getElementById("deleteMenu");
+const statusMenuBtn = document.getElementById("setStatus");
 
 const deleteAllBillsBtn = document.getElementById("deleteAllBills");
 const deleteAllOrdersBtn = document.getElementById("deleteAllOrders");
@@ -21,6 +24,8 @@ const deleteAllCardsBtn = document.getElementById("deleteAllCards");
 const deleteAllCustomersBtn = document.getElementById("deleteAllCustomers");
 const deleteAllTransactionsBtn = document.getElementById("deleteAllTransactions");
 const deleteAllLocationBtn = document.getElementById("deleteAllLocation");
+
+const overallTable = document.getElementById("business_overview_table");
 
 const billTableSql = `
 CREATE TABLE IF NOT EXISTS bill (
@@ -102,12 +107,27 @@ CREATE TABLE IF NOT EXISTS transaction (
     business_balance NUMERIC(10, 2)
 );
 
-INSERT INTO transaction (total, from_bankacct, business_balance) VALUES
-(80.46, '5678901256789012', 5080.46),
-(62.32, '4567890145678901', 5142.78),
-(41.21, '8901234589012345', 5183.99),
-(45.53, '2345678923456789', 5229.52),
-(48.72, '7890123478901234', 5278.24);
+INSERT INTO transaction (total, from_bankacct, tdate, business_balance) VALUES
+(80.46, 'cash', '2024-11-25', 5080.46),
+(62.32, 'cash', '2024-11-25', 5142.78),
+(41.21, 'cash', '2024-11-25', 5183.99),
+(45.53, 'cash', '2024-11-25', 5229.52),
+(48.72, 'cash', '2024-11-25', 5278.24),
+(75.85, 'cash', '2024-11-26', 5354.09),
+(55.42, 'cash', '2024-11-26', 5410.51),
+(35.67, 'cash', '2024-11-26', 5446.18),
+(50.12, 'cash', '2024-11-26', 5496.30),
+(60.89, 'cash', '2024-11-26', 5557.19),
+(66.40, 'cash', '2024-11-27', 5623.59),
+(52.30, 'cash', '2024-11-27', 5675.89),
+(47.89, 'cash', '2024-11-27', 5723.78),
+(63.11, 'cash', '2024-11-27', 5786.89),
+(58.75, 'cash', '2024-11-27', 5845.64),
+(69.22, 'cash', '2024-11-28', 5914.86),
+(44.53, 'cash', '2024-11-28', 5959.39),
+(56.71, 'cash', '2024-11-28', 6016.10),
+(62.30, 'cash', '2024-11-28', 6078.40),
+(70.40, 'cash', '2024-11-28', 6148.80);
 
 `;
 
@@ -175,6 +195,7 @@ const displayAllTables = function() {
     transactionTable.style.display = "block";
     locationTable.style.display = "block";
     menuTable.style.display = "block";
+    overallTable.style.display = "block";
 };
 
 window.onload = async function() {
@@ -185,6 +206,7 @@ window.onload = async function() {
     await utilities.fetchBill();
     await utilities.fetchOrders();
     await utilities.fetchTransaction();
+    await utilities.overallview();
     displayAllTables();
 };
 
@@ -237,7 +259,11 @@ createTableBtn.addEventListener("click", async() => {
         await createTable(txSql);
         await utilities.fetchTransaction();
 
+        await utilities.overallview();
+
         displayAllTables();
+        createTableBtn.style.display = 'none';
+
     }
 });
 
@@ -256,6 +282,16 @@ addCustomerBtn.addEventListener("click", async() => {
 deleteCustomerBtn.addEventListener("click", async() => {
     await utilities.deleteCustomer();
 });
+addMenuBtn.addEventListener("click", async() => {
+    await utilities.addMenu();
+});
+deleteMenuBtn.addEventListener("click", async() => {
+    await utilities.deleteMenu();
+});
+statusMenuBtn.addEventListener("click", async() => {
+    await utilities.setMenuStatus();
+});
+
 
 deleteAllBillsBtn.addEventListener("click", async() => {
     await utilities.deleteAllBills();
@@ -280,4 +316,22 @@ deleteAllTransactionsBtn.addEventListener("click", async() => {
 deleteAllLocationBtn.addEventListener("click", async() => {
     await utilities.deleteAllLocation();
     await utilities.fetchLocation();
+});
+document.querySelectorAll('.dashboard-tab').forEach(button => {
+    button.addEventListener('click', (e) => {
+        const target = e.target.getAttribute('data-target');
+
+        // Hide all forms
+        document.querySelectorAll('.form-container').forEach(form => {
+            form.classList.add('hidden');
+            form.classList.remove('active');
+        });
+
+        // Show the targeted form
+        const targetForm = document.getElementById(target);
+        if (targetForm) {
+            targetForm.classList.remove('hidden');
+            targetForm.classList.add('active');
+        }
+    });
 });
