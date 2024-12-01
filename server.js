@@ -149,8 +149,23 @@ app.post("/orders", async(req, res) => {
         );
         const billId = billResult.rows[0].bill_id;
 
+        // Check if all dishes are available before inserting orders
+        for (const { name }
+            of orders) {
+            const statusResult = await client.query(
+                "SELECT status FROM menu WHERE name = $1", [name]
+            );
 
+            if (statusResult.rows.length === 0) {
+                // Dish not found in the menu
+                return res.status(400).send(`The dish "${name}" does not exist in the menu.`);
+            }
 
+            if (statusResult.rows[0].status === 'Out of Stock') {
+                // Dish is not available
+                return res.status(400).send(`The dish "${name}" is out of stock.`);
+            }
+        }
 
         // Insert all orders
         const orderValues = orders.map(({ name, quantity }) => `('${billId}', '${name}', (SELECT price FROM menu WHERE name = '${name}'), ${quantity})`);
@@ -180,9 +195,6 @@ app.post("/orders", async(req, res) => {
         client.release();
     }
 });
-
-
-
 
 //delete order
 app.delete("/orders/:id", async(req, res) => {
@@ -383,6 +395,7 @@ app.delete("/menu/:name", async(req, res) => {
     }
 });
 
+//change status in menu
 app.put("/menu/status/:name", async(req, res) => {
     const { name } = req.params;
     const { status } = req.body;
@@ -400,6 +413,33 @@ app.put("/menu/status/:name", async(req, res) => {
     } catch (err) {
         console.error(err.message);
         res.sendStatus(500); // Internal server error
+    }
+});
+
+//add card
+app.post("/cards", async(req, res) => {
+    const { id, name, date, balance } = req.body;
+    // Check if both id and name are provided
+    if (!name || !date || !id || !balance) {
+        return res.status(400).send("ID, name, ex-date, and current balance are required");
+    }
+    try {
+        const billCheck = await pool.query(
+            "SELECT 1 FROM cards WHERE id = $1", [id]
+        );
+        if (billCheck.rowCount === 1) {
+            return res.status(400).send("This card number already exists.");
+        }
+        await pool.query("INSERT INTO cards (id, name, ex_date, balance) VALUES ($1, $2, $3, $4)", [
+            id,
+            name,
+            date,
+            balance
+        ]);
+        res.sendStatus(201); // Successfully created
+    } catch (err) {
+        console.error(err.message);
+        res.sendStatus(500);
     }
 });
 
