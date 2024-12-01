@@ -149,6 +149,9 @@ app.post("/orders", async(req, res) => {
         );
         const billId = billResult.rows[0].bill_id;
 
+
+
+
         // Insert all orders
         const orderValues = orders.map(({ name, quantity }) => `('${billId}', '${name}', (SELECT price FROM menu WHERE name = '${name}'), ${quantity})`);
         const insertOrdersQuery = `
@@ -333,6 +336,70 @@ app.delete("/customers/:phone", async(req, res) => {
     } catch (err) {
         console.error(err.message);
         res.sendStatus(500);
+    }
+});
+
+//add menu
+app.post("/menu", async(req, res) => {
+    const { name, price, image } = req.body;
+    // Check if both id and name are provided
+    if (!name || !price) {
+        return res.status(400).send("Name, price, and image URL are required");
+    }
+    try {
+        const billCheck = await pool.query(
+            "SELECT 1 FROM menu WHERE name = $1", [name]
+        );
+        if (billCheck.rowCount === 1) {
+            return res.status(400).send("This dish name is already used.");
+        }
+        await pool.query("INSERT INTO menu (name, price, image, status) VALUES ($1, $2, $3, 'Available')", [
+            name,
+            price,
+            image
+        ]);
+        res.sendStatus(201); // Successfully created
+    } catch (err) {
+        console.error(err.message);
+        res.sendStatus(500);
+    }
+});
+
+//delete menu
+app.delete("/menu/:name", async(req, res) => {
+    const { name } = req.params;
+    try {
+        const result = await pool.query(
+            "SELECT name FROM menu WHERE name = $1", [name]
+        );
+        if (result.rowCount === 0) {
+            return res.sendStatus(400);
+        }
+        await pool.query("DELETE FROM menu WHERE name = $1", [name]);
+        res.sendStatus(201); // Successfully
+    } catch (err) {
+        console.error(err.message);
+        res.sendStatus(500);
+    }
+});
+
+app.put("/menu/status/:name", async(req, res) => {
+    const { name } = req.params;
+    const { status } = req.body;
+
+    try {
+        // Check if the menu item exists
+        const menuItem = await pool.query("SELECT status FROM menu WHERE name = $1", [name]);
+        if (menuItem.rowCount === 0) {
+            return res.status(400).send("Menu item not found.");
+        }
+
+
+        await pool.query("UPDATE menu SET status = $1 WHERE name = $2", [status, name]);
+        res.sendStatus(200); // Successfully updated
+    } catch (err) {
+        console.error(err.message);
+        res.sendStatus(500); // Internal server error
     }
 });
 
