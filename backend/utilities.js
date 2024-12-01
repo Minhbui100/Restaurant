@@ -1,4 +1,3 @@
-// CRUD operations for Students
 async function fetchBill() {
     const response = await fetch("http://localhost:3000/bill");
     const bill = await response.json();
@@ -67,37 +66,72 @@ async function fetchCustomers() {
         table.innerHTML += row;
     });
 }
-
 async function fetchTransaction() {
     const response = await fetch("http://localhost:3000/transaction");
     const transactions = await response.json();
-    const table = document.getElementById("transactionTable");
-    table.innerHTML = "";
-    transactions.forEach((transaction) => {
-        const formattedDate = transaction.tdate ?
-            new Date(transaction.tdate).toISOString().slice(0, 10) :
-            ""; // Format the date to YYYY-MM-DD
 
-        const row = `<tr>
-                      <td>${
-                        transaction.tran_id
-                      }</td>
-                      <td>${
-                        transaction.total !== null ? transaction.total : ""
-                      }</td>
-                      <td>${
-                        transaction.from_bankacct !== null
-                          ? transaction.from_bankacct
-                          : ""
-                      }</td>
-                      <td>${formattedDate}</td>
-                      <td>${
-                        transaction.business_balance
-                      }</td>                                
-                   </tr>`;
-        table.innerHTML += row;
+    // Initialize variables
+    const dates = [];
+    const revenues = [];
+    let lastBalance = 5000; // Original balance at the start
+
+    transactions.forEach((transaction, index) => {
+        const formattedDate = new Date(transaction.tdate).toISOString().slice(0, 10); // Format date as YYYY-MM-DD
+
+        // Calculate the revenue for the current day by subtracting last day's balance from today's balance
+        const revenueForDay = transaction.business_balance - lastBalance;
+
+        // Check if the date already exists in the dates array
+        if (!dates.includes(formattedDate)) {
+            // If not, add the new date and its corresponding revenue
+            dates.push(formattedDate);
+            revenues.push(revenueForDay);
+        } else {
+            // If the date already exists, find the index and add the revenue for the day
+            const index = dates.indexOf(formattedDate);
+            revenues[index] += revenueForDay;
+        }
+
+        // Update the lastBalance to the current day's business_balance for the next iteration
+        lastBalance = transaction.business_balance;
+    });
+
+    // Create the chart
+    const ctx = document.getElementById('businessChart').getContext('2d');
+    const businessChart = new Chart(ctx, {
+        type: 'line', // Type of chart
+        data: {
+            labels: dates, // Dates on the x-axis
+            datasets: [{
+                label: 'Total Transactions per Day',
+                data: revenues, // Transaction revenues on the y-axis
+                borderColor: 'rgba(75, 192, 192, 1)', // Line color
+                fill: false, // Don't fill the area under the line
+                tension: 0.1 // Smoothing of the line
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Date'
+                    }
+                },
+                y: {
+                    title: {
+                        display: true,
+                        text: 'Amount ($)'
+                    },
+                    beginAtZero: true
+                }
+            }
+        }
     });
 }
+
+
 
 async function fetchLocation() {
     const response = await fetch("http://localhost:3000/location");
@@ -190,9 +224,10 @@ async function addOrders() {
         });
 
         if (response.status === 201) {
-            document.querySelectorAll(".quantity-input").forEach((input) => (input.value = ""));
+
             await fetchOrders();
             await fetchBill();
+            await overallview();
         } else {
             const errorMessage = await response.text();
             alert(`Error: ${errorMessage}`);
@@ -201,6 +236,7 @@ async function addOrders() {
         console.error("Fetch error:", error);
         alert("An unexpected error occurred.");
     }
+    document.querySelectorAll(".quantity-input").forEach((input) => (input.value = ""));
 }
 
 
@@ -218,6 +254,7 @@ async function deleteOrders() {
         // Clear input fields after successful submission
         await fetchOrders();
         await fetchBill();
+        await overallview();
     } else {
         console.error("An error occurred:", response.statusText);
     }
@@ -255,6 +292,7 @@ async function payment() {
             await fetchTransaction();
             await fetchCards();
             await fetchCustomers();
+            await overallview();
         } else {
             console.error("An error occurred:", response.statusText);
         }
@@ -262,6 +300,7 @@ async function payment() {
         await fetchTransaction();
         await fetchCards();
         await fetchCustomers();
+        await overallview();
         document.getElementById("paymentOrderId").value = "";
         document.getElementById("customerPhone").value = "";
         document.getElementById("tip").value = "";
@@ -326,6 +365,93 @@ async function deleteCustomer() {
     document.getElementById("custDelete").value = "";
 }
 
+async function addMenu() {
+    const name = document.getElementById("menuName").value;
+    const price = document.getElementById("menuPrice").value;
+    const image = document.getElementById("image").value;
+
+    try {
+        const response = await fetch("http://localhost:3000/menu", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                name,
+                price,
+                image
+            }),
+        });
+
+        if (response.status === 400) {
+            // Read and display the warning message from the response
+            const warningMessage = await response.text();
+            displayWarning("warningMessage");
+        } else if (response.ok) {
+            await fetchMenu();
+        } else {
+            console.error("An error occurred:", response.statusText);
+        }
+        document.getElementById("menuName").value = "";
+        document.getElementById("menuPrice").value = "";
+        document.getElementById("image").value = "";
+    } catch (error) {
+        console.error("Fetch error:", error);
+    }
+}
+
+async function deleteMenu() {
+    const name = document.getElementById("menuDelete").value;
+    const response = await fetch(`http://localhost:3000/menu/${name}`, {
+        method: "DELETE",
+    });
+    if (response.status === 500) {
+        displayWarning("This dish cannot be deleted because it was used to pay bills.");
+    } else if (response.status === 400) {
+        displayWarning("This dish name not found");
+    } else if (response.ok) {
+        // Clear input fields after successful submission
+        await fetchMenu();
+    } else {
+        console.error("An error occurred:", response.statusText);
+    }
+    document.getElementById("menuDelete").value = "";
+}
+
+async function setMenuStatus() {
+    const name = document.getElementById("statusName").value;
+    const status = document.querySelector('input[name="status"]:checked');
+
+    try {
+        const response = await fetch(`http://localhost:3000/menu/status/${name}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                status: status.value,
+            }),
+
+        });
+
+        if (response.status === 400) {
+            displayWarning("Menu item not found.");
+        } else if (response.ok) {
+            await fetchMenu(); // Refresh the menu table
+            document.getElementById("statusName").value = "";
+            const radioButtons = document.querySelectorAll('input[name="status"]');
+            radioButtons.forEach((radio) => {
+                radio.checked = false;
+            });
+        } else {
+            console.error("An error occurred:", response.statusText);
+        }
+    } catch (error) {
+        console.error("Fetch error:", error);
+    }
+}
+
+
 async function deleteAllCustomers() {
     try {
         const response = await fetch("http://localhost:3000/customers", {
@@ -358,6 +484,7 @@ async function deleteAllBills() {
             displayWarning(warningMessage);
         } else if (response.ok) {
             await fetchBill(); // Call function to refresh the list of locations
+            await overallview();
         } else {
             console.error("Unexpected response:", response.statusText);
         }
@@ -438,6 +565,7 @@ async function deleteAllLocation() {
             displayWarning(warningMessage);
         } else if (response.ok) {
             await fetchLocation(); // Call function to refresh the list of locations
+            await overallview();
         } else {
             console.error("Unexpected response:", response.statusText);
         }
@@ -445,6 +573,36 @@ async function deleteAllLocation() {
         console.error("Failed to delete all locations:", error);
     }
 }
+
+async function overallview() {
+    // Fetch data
+    const billsResponse = await fetch("http://localhost:3000/bill");
+    const bills = await billsResponse.json();
+
+    const transactionsResponse = await fetch("http://localhost:3000/transaction");
+    const transactions = await transactionsResponse.json();
+
+    const locationsResponse = await fetch("http://localhost:3000/location");
+    const locations = await locationsResponse.json();
+
+    // Calculate totals
+    const numBills = bills.length;
+    const businessBalance = transactions.length > 0 ?
+        (transactions[transactions.length - 1].business_balance - 5000.00).toFixed(2) :
+        0.00; // Get the last transaction's balance
+    const numLocations = locations.length;
+
+    // Populate the table
+    const tableBody = document.getElementById("businessOverviewTable");
+    tableBody.innerHTML = `
+        <tr>
+            <td>${numBills}</td>
+            <td>${businessBalance}</td>
+            <td>${numLocations}</td>
+        </tr>
+    `;
+}
+
 
 export {
     fetchBill,
@@ -460,12 +618,16 @@ export {
     payment,
     addCustomer,
     deleteCustomer,
+    addMenu,
+    deleteMenu,
     deleteAllCustomers,
     deleteAllBills,
     deleteAllOrders,
     deleteAllCards,
     deleteAllTransactions,
     deleteAllLocation,
+    overallview,
+    setMenuStatus
 
 
 };
