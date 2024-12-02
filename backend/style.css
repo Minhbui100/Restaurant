@@ -34,12 +34,15 @@ body {
 #businessChart {
     width: 100%;
     max-width: 1200px;
-    /* Set the max width for the chart */
-    max-height: 600px;
-    /* Set the height of the chart */
+    /* Ensure the chart doesn't exceed a specific width */
+    height: 300px;
+    /* Fixed height to prevent resizing */
     margin-bottom: 20px;
-    /* Add some space below the chart */
     background-color: #fff;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    /* Add a shadow for a floating effect */
+    border: 1px solid #ddd;
+    /* Optional border for definition */
 }
 
 .container {

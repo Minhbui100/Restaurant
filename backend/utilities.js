@@ -45,8 +45,8 @@ async function fetchCards() {
         const row = `<tr>
                         <td>${card.id !== null ? card.id : ""}</td>
                         <td>${card.name !== null ? card.name : ""}</td>
-                        <td>${card.ex_date !== null ? card.ex_date : ""}</td>
-                        <td>${card.balance !== null ? card.balance : ""}</td>               
+                        <td>${card.ex_date !== "N/A"  ? card.ex_date : ""}</td>
+                        <td>${card.ex_date !== "N/A"  ? card.balance : ""}</td>               
                      </tr>`;
         table.innerHTML += row;
     });
@@ -66,6 +66,9 @@ async function fetchCustomers() {
         table.innerHTML += row;
     });
 }
+
+let businessChart; // Declare the chart globally to manage its instance
+
 async function fetchTransaction() {
     const response = await fetch("http://localhost:3000/transaction");
     const transactions = await response.json();
@@ -96,9 +99,14 @@ async function fetchTransaction() {
         lastBalance = transaction.business_balance;
     });
 
+    // Destroy the previous chart instance if it exists
+    if (businessChart) {
+        businessChart.destroy();
+    }
+
     // Create the chart
     const ctx = document.getElementById('businessChart').getContext('2d');
-    const businessChart = new Chart(ctx, {
+    businessChart = new Chart(ctx, {
         type: 'line', // Type of chart
         data: {
             labels: dates, // Dates on the x-axis
@@ -129,6 +137,8 @@ async function fetchTransaction() {
             }
         }
     });
+
+    // Update the table
     const table = document.getElementById("transactionTable");
     table.innerHTML = "";
     transactions.forEach((tran) => {

@@ -12,6 +12,23 @@ const checkoutForm = document.getElementById("checkout-form");
 const paymentMethodSelect = document.getElementById("payment-method");
 const creditCardField = document.getElementById("credit-card-field");
 // Render the menu
+
+function refreshPageAfterCheckout() {
+  // Reset form fields to empty
+  document.getElementById("customer-name").value = "";
+  document.getElementById("phone-number").value = "";
+  document.getElementById("payment-method").value = "cash"; // Reset to default (if applicable)
+  document.getElementById("credit-card-number").value = "";
+  document.getElementById("expiration-date").value = "";
+  document.getElementById("tip").value = "";
+  document.getElementById("restaurant-location").value = "";
+  cart = [];
+  renderCart();
+  document.getElementById("total").textContent = "Total: 0";
+  cartModal.classList.add("hidden");
+  checkoutModal.classList.add("hidden");
+}
+
 function renderMenu() {
   const menuTableBody = document.querySelector("#menu-table tbody");
   menuTableBody.innerHTML = "";
@@ -210,6 +227,7 @@ checkoutForm.addEventListener("submit", async (event) => {
   await utilities2.addCard(cardId, customerName, expireDate, totalAfterTip);
 
   await utilities2.payment(orderDetails);
+  refreshPageAfterCheckout();
   // Show a confirmation message or handle the data as needed
 });
 
