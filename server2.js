@@ -131,10 +131,29 @@ app.post("/createtable", async (req, res) => {
   }
 });
 
+// app.get("/checkRoyalty", async (req, res) => {
+//   const phoneNumber = req.body.phoneNumber;
+//   const sql = `
+//   SELECT *
+//   FROM customers
+//   WHERE phone = ${phoneNumber};
+
+//   UPDATE customers
+//   SET membership_point = membership_point + 1
+//   WHERE phone = ${phoneNumber}; -- Replace with the same phone number
+//     `;
+//   try {
+//     const result = await pool.query(sql);
+//     res.status(200).json({ success: true, result: result });
+//   } catch (error) {
+//     res.status(500).json({ success: false, error: error.message });
+//     console.log("here1", error.message);
+//   }
+// });
+
 //add order
 app.post("/orders", async (req, res) => {
   const { orders } = req.body;
-
   if (!orders || orders.length === 0) {
     return res
       .status(400)
@@ -196,7 +215,7 @@ app.post("/orders", async (req, res) => {
     await client.query("UPDATE bill SET tax = total * 0.0625;");
 
     await client.query("COMMIT");
-    res.status(201).send("Orders successfully added.");
+    res.status(201).send(`${billId}`);
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error processing orders:", error);
@@ -252,8 +271,8 @@ app.delete("/orders/:id", async (req, res) => {
 //Payment
 app.put("/bill/:bill_id", async (req, res) => {
   const { bill_id } = req.params;
-  const { customerPhone, locationName, tip, cardId } = req.body;
-  console.log(locationName);
+  const { customerPhone, locationId, tip, cardId } = req.body;
+
   try {
     // Retrieve the current bill details including total, tip, and tax
     const billResult = await pool.query(
@@ -275,8 +294,8 @@ app.put("/bill/:bill_id", async (req, res) => {
 
     // Update the bill to mark it as paid
     await pool.query(
-      "UPDATE bill SET cust_phone = $1, tip=$2, card_id = $3, paid = TRUE, location_name=$4 WHERE bill_id = $5",
-      [customerPhone, tip, cardId, locationName, bill_id]
+      "UPDATE bill SET cust_phone = $1, tip=$2, card_id = $3, paid = TRUE, location_id=$4 WHERE bill_id = $5",
+      [customerPhone, tip, cardId, locationId, bill_id]
     );
 
     // Calculate the total amount to deduct from the card balance
@@ -313,9 +332,8 @@ app.put("/bill/:bill_id", async (req, res) => {
 
     // Insert the transaction record
     await pool.query(
-      `
-                                INSERT INTO transaction(total, from_bankacct, business_balance) VALUES($1, $2, $3)
-                                `,
+      `INSERT INTO transaction (total, from_bankacct, business_balance) 
+             VALUES ($1, $2, $3)`,
       [formattedTotalAmount, cardId, newcurrentBusinessBalance]
     );
 
@@ -329,26 +347,47 @@ app.put("/bill/:bill_id", async (req, res) => {
 //add customer
 app.post("/customers", async (req, res) => {
   const { name, phone } = req.body;
-  // Check if both id and name are provided
-  if (!name || !phone) {
-    return res.status(400).send("Name and phone are required");
+
+  if (!phone) {
+    return res
+      .status(400)
+      .json({ success: false, error: "Phone number is required" });
   }
+
   try {
-    const billCheck = await pool.query(
-      "SELECT 1 FROM customers WHERE phone = $1",
+    // Check if the customer exists
+    const existingCustomer = await pool.query(
+      "SELECT * FROM customers WHERE phone = $1",
       [phone]
     );
-    if (billCheck.rowCount === 1) {
-      return res.status(400).send("This phone number is already used.");
+
+    if (existingCustomer.rows.length > 0) {
+      // Customer exists: Increment membership points by 1
+      await pool.query(
+        "UPDATE customers SET membership_point = membership_point + 1 WHERE phone = $1",
+        [phone]
+      );
+      return res.status(200).json({
+        success: true,
+        message: "Customer exists. Membership points incremented by 1.",
+      });
+    } else {
+      // Customer does not exist: Add a new customer
+      const newName = name || "New Customer"; // Use provided name or default to "New Customer"
+      await pool.query(
+        "INSERT INTO customers (name, phone, membership_point) VALUES ($1, $2, 1)",
+        [newName, phone]
+      );
+      return res.status(201).json({
+        success: true,
+        message:
+          "Customer did not exist. Added new customer with 1 membership point.",
+      });
     }
-    await pool.query("INSERT INTO customers (name, phone) VALUES ($1, $2)", [
-      name,
-      phone,
-    ]);
-    res.sendStatus(201); // Successfully created
-  } catch (err) {
-    console.error(err.message);
-    res.sendStatus(500);
+  } catch (error) {
+    // Handle errors
+    console.error("Error:", error.message);
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
 
@@ -442,28 +481,38 @@ app.put("/menu/status/:name", async (req, res) => {
 
 //add card
 app.post("/cards", async (req, res) => {
-  const { id, name, date, balance } = req.body;
-  // Check if both id and name are provided
-  if (!name || !date || !id || !balance) {
-    return res
-      .status(400)
-      .send("ID, name, ex-date, and current balance are required");
-  }
+  const { id, name, ex_date, spend } = req.body;
+
   try {
-    const billCheck = await pool.query("SELECT 1 FROM cards WHERE id = $1", [
+    // First, check if the card exists
+    const existingCard = await pool.query("SELECT * FROM cards WHERE id = $1", [
       id,
     ]);
-    if (billCheck.rowCount === 1) {
-      return res.status(400).send("This card number already exists.");
+
+    let newBalance;
+    if (existingCard.rows.length > 0) {
+      // If card exists, subtract the spend from the current balance
+      const currentBalance = existingCard.rows[0].balance;
+      newBalance = currentBalance - spend;
+
+      // Update the balance for the existing card
+      await pool.query("UPDATE cards SET balance = $1 WHERE id = $2", [
+        newBalance,
+        id,
+      ]);
+    } else {
+      // If card doesn't exist, create a new card with default balance of 1000
+      newBalance = 1000 - spend;
+      await pool.query(
+        "INSERT INTO cards (id, name, ex_date, balance) VALUES ($1, $2, $3, $4)",
+        [id, name, ex_date, newBalance]
+      );
     }
-    await pool.query(
-      "INSERT INTO cards (id, name, ex_date, balance) VALUES ($1, $2, $3, $4)",
-      [id, name, date, balance]
-    );
-    res.sendStatus(201); // Successfully created
-  } catch (err) {
-    console.error(err.message);
-    res.sendStatus(500);
+
+    res.status(200).json({ success: true, newBalance });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 

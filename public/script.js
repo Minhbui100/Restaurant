@@ -1,43 +1,6 @@
-// Menu items data
-const menuItems = [
-  {
-    name: "Grilled Salmon",
-    price: 18.99,
-    image: "./img/salmon.jpg",
-    status: "Available",
-  },
-  {
-    name: "Spaghetti Carbonara",
-    price: 14.99,
-    image: "./img/spaghetti.jpg",
-    status: "Available",
-  },
-  {
-    name: "Caesar Salad",
-    price: 9.99,
-    image: "./img/caesar.jpg",
-    status: "Out of Stock",
-  },
-  {
-    name: "Cheeseburger Deluxe",
-    price: 12.99,
-    image: "./img/cheeseburger.jpeg",
-    status: "Available",
-  },
-  {
-    name: "Margherita Pizza",
-    price: 13.99,
-    image: "./img/pizza.jpg",
-    status: "Available",
-  },
-  {
-    name: "Chocolate Lava Cake",
-    price: 7.99,
-    image: "./img/lavaCake.jpg",
-    status: "Available",
-  },
-];
+import * as utilities2 from "./utilities2.js";
 
+const menuItems = await utilities2.getMenuItems();
 // Cart data structure
 let cart = [];
 const checkoutBtn = document.getElementById("checkout-btn");
@@ -45,6 +8,9 @@ const checkoutModal = document.getElementById("checkout-modal");
 const cartModal = document.getElementById("cart-modal");
 const exitCheckoutBtn = document.getElementById("exit-checkout-btn");
 const total = document.getElementById("total");
+const checkoutForm = document.getElementById("checkout-form");
+const paymentMethodSelect = document.getElementById("payment-method");
+const creditCardField = document.getElementById("credit-card-field");
 // Render the menu
 function renderMenu() {
   const menuTableBody = document.querySelector("#menu-table tbody");
@@ -66,7 +32,7 @@ function renderMenu() {
 }
 
 function calculateTotalQuantities() {
-  totalQuantities = 0;
+  let totalQuantities = 0;
   for (const item of cart) {
     totalQuantities += item.quantity;
   }
@@ -114,6 +80,14 @@ function calculateTotalQuantities() {
 //   }
 // }
 
+function totalAmount() {
+  let totalAmount = 0;
+  cart.forEach((cartItem, index) => {
+    totalAmount += cartItem.price * cartItem.quantity;
+  });
+  return totalAmount;
+}
+
 // Render the cart
 function renderCart() {
   const cartTableBody = document.querySelector("#cart-table tbody");
@@ -153,6 +127,7 @@ document.querySelector("#menu-table").addEventListener("click", (e) => {
     } else {
       cart[cartItemIndex].quantity++;
     }
+    console.log(cart);
     renderCart();
   }
 });
@@ -197,6 +172,52 @@ checkoutBtn.addEventListener("click", () => {
 exitCheckoutBtn.addEventListener("click", () => {
   checkoutModal.classList.add("hidden");
   cartModal.classList.remove("hidden");
+});
+
+// Add an event listener for form submission
+checkoutForm.addEventListener("submit", async (event) => {
+  // Prevent the form from reloading the page
+  event.preventDefault();
+
+  // Get values from the form fields
+  const customerName = document.getElementById("customer-name").value;
+  const customerPhone = document.getElementById("phone-number").value;
+  const paymentMethod = document.getElementById("payment-method").value;
+  let cardId = document.getElementById("credit-card-number").value;
+  const expireDate = document.getElementById("expiration-date").value;
+  const tip = parseFloat(document.getElementById("tip").value); // Convert to number
+  const locationName = document.getElementById("restaurant-location").value;
+
+  const billId = await utilities2.addOrders(cart);
+  console.log(billId);
+  // Create an object to store all data (optional)
+  const orderDetails = {
+    billId,
+    customerName,
+    customerPhone,
+    paymentMethod,
+    cardId,
+    expireDate,
+    tip,
+    locationName,
+  };
+  let totalAfterTip = totalAmount() + tip;
+  await utilities2.addCustomer(customerName, customerPhone);
+  if (paymentMethod == "Cash") {
+    await utilities2.addCard(cardId, customerName, expireDate, totalAfterTip);
+  }
+
+  await utilities2.payment(orderDetails);
+  // Show a confirmation message or handle the data as needed
+});
+
+// Listen for changes to the payment method
+paymentMethodSelect.addEventListener("change", function () {
+  if (paymentMethodSelect.value === "card") {
+    creditCardField.classList.remove("hidden"); // Show credit card input
+  } else {
+    creditCardField.classList.add("hidden"); // Hide credit card input
+  }
 });
 
 // Initialize the menu
