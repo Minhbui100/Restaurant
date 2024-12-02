@@ -188,11 +188,11 @@ checkoutForm.addEventListener("submit", async (event) => {
   const tip = parseFloat(document.getElementById("tip").value); // Convert to number
   const locationName = document.getElementById("restaurant-location").value;
 
-  const billId = await utilities2.addOrders(cart);
-  console.log(billId);
+  const orderId = await utilities2.addOrders(cart);
+  console.log(orderId);
   // Create an object to store all data (optional)
   const orderDetails = {
-    billId,
+    orderId,
     customerName,
     customerPhone,
     paymentMethod,
@@ -202,8 +202,11 @@ checkoutForm.addEventListener("submit", async (event) => {
     locationName,
   };
   let totalAfterTip = totalAmount() + tip;
+  console.log("here", customerName, customerPhone);
   await utilities2.addCustomer(customerName, customerPhone);
-  if (paymentMethod == "Cash") {
+  console.log(paymentMethod);
+  if (paymentMethod == "card") {
+    console.log("runn");
     await utilities2.addCard(cardId, customerName, expireDate, totalAfterTip);
   }
 

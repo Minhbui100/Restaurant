@@ -196,7 +196,7 @@ app.post("/orders", async (req, res) => {
     await client.query("UPDATE bill SET tax = total * 0.0625;");
 
     await client.query("COMMIT");
-    res.status(201).send("Orders successfully added.");
+    res.status(201).send(`${billId}`);
   } catch (error) {
     await client.query("ROLLBACK");
     console.error("Error processing orders:", error);
@@ -329,26 +329,46 @@ app.put("/bill/:bill_id", async (req, res) => {
 //add customer
 app.post("/customers", async (req, res) => {
   const { name, phone } = req.body;
-  // Check if both id and name are provided
+
+  // Check if both name and phone are provided
   if (!name || !phone) {
-    return res.status(400).send("Name and phone are required");
+    return res.status(400).send("Name and phone are required.");
   }
+
   try {
-    const billCheck = await pool.query(
-      "SELECT 1 FROM customers WHERE phone = $1",
+    // Check if the customer already exists
+    const customerCheck = await pool.query(
+      "SELECT * FROM customers WHERE phone = $1",
       [phone]
     );
-    if (billCheck.rowCount === 1) {
-      return res.status(400).send("This phone number is already used.");
+
+    if (customerCheck.rowCount > 0) {
+      // Customer exists, return their details
+      return res.status(200).json({
+        message: "Customer already exists.",
+        customer: customerCheck.rows[0],
+      });
     }
+
+    // Customer does not exist, insert into the table
     await pool.query("INSERT INTO customers (name, phone) VALUES ($1, $2)", [
       name,
       phone,
     ]);
-    res.sendStatus(201); // Successfully created
+
+    // Retrieve the newly inserted customer
+    const newCustomer = await pool.query(
+      "SELECT * FROM customers WHERE phone = $1",
+      [phone]
+    );
+
+    res.status(201).json({
+      message: "Customer added successfully.",
+      customer: newCustomer.rows[0],
+    });
   } catch (err) {
-    console.error(err.message);
-    res.sendStatus(500);
+    console.error("Error handling customers:", err.message);
+    res.sendStatus(500); // Internal server error
   }
 });
 
@@ -442,31 +462,40 @@ app.put("/menu/status/:name", async (req, res) => {
 
 //add card
 app.post("/cards", async (req, res) => {
-  const { id, name, date, balance } = req.body;
-  // Check if both id and name are provided
-  if (!name || !date || !id || !balance) {
-    return res
-      .status(400)
-      .send("ID, name, ex-date, and current balance are required");
-  }
+  const { id, name, ex_date, spend } = req.body;
+
   try {
-    const billCheck = await pool.query("SELECT 1 FROM cards WHERE id = $1", [
+    // First, check if the card exists
+    const existingCard = await pool.query("SELECT * FROM cards WHERE id = $1", [
       id,
     ]);
-    if (billCheck.rowCount === 1) {
-      return res.status(400).send("This card number already exists.");
+
+    let newBalance;
+    if (existingCard.rows.length > 0) {
+      // If card exists, subtract the spend from the current balance
+      const currentBalance = existingCard.rows[0].balance;
+      newBalance = currentBalance - spend;
+
+      // Update the balance for the existing card
+      await pool.query("UPDATE cards SET balance = $1 WHERE id = $2", [
+        newBalance,
+        id,
+      ]);
+    } else {
+      // If card doesn't exist, create a new card with default balance of 1000
+      newBalance = 1000 - spend;
+      await pool.query(
+        "INSERT INTO cards (id, name, ex_date, balance) VALUES ($1, $2, $3, $4)",
+        [id, name, ex_date, newBalance]
+      );
     }
-    await pool.query(
-      "INSERT INTO cards (id, name, ex_date, balance) VALUES ($1, $2, $3, $4)",
-      [id, name, date, balance]
-    );
-    res.sendStatus(201); // Successfully created
-  } catch (err) {
-    console.error(err.message);
-    res.sendStatus(500);
+
+    res.status(200).json({ success: true, newBalance });
+  } catch (error) {
+    console.error(error.message);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
-
 //delete all customer
 app.delete("/customers", async (req, res) => {
   try {

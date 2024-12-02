@@ -52,10 +52,10 @@ async function addCustomer(name, phone) {
     });
 
     if (response.ok) {
-      const responseData = await response.json();
+      const responseData = await response.text();
       console.log(responseData.message); // Log the success message
     } else if (response.status === 400) {
-      const errorMessage = await response.json();
+      const errorMessage = await response.text();
       console.warn("Validation error:", errorMessage.error);
     } else {
       const errorMessage = await response.text();
@@ -68,7 +68,7 @@ async function addCustomer(name, phone) {
 
 async function payment(orderDetails) {
   const {
-    billId,
+    orderId,
     customerName,
     customerPhone,
     paymentMethod,
@@ -79,7 +79,8 @@ async function payment(orderDetails) {
   } = orderDetails;
   try {
     console.log("payment run");
-    const response = await fetch(`http://localhost:3000/bill/${billId}`, {
+    console.log(customerPhone, locationName, tip, cardId);
+    const response = await fetch(`http://localhost:3000/bill/${orderId}`, {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -87,7 +88,7 @@ async function payment(orderDetails) {
       body: JSON.stringify({
         customerPhone,
         locationName,
-        tip,
+        tip: `${tip}`,
         cardId,
       }),
     });
@@ -96,7 +97,7 @@ async function payment(orderDetails) {
       const warningMessage = await response.text();
       console.log(warningMessage);
     } else if (response.ok) {
-      alert(`Order placed by ${customerName} at ${restaurantLocation}.`);
+      alert(`Order placed by ${customerName} at ${locationName}.`);
     } else {
       console.error("An error occurred:", response.statusText);
     }
