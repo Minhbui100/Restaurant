@@ -108,6 +108,7 @@ async function payment(orderDetails) {
 
 async function addCard(id, name, date, spend) {
   try {
+    console.log(id);
     const response = await fetch("http://localhost:3000/cards", {
       method: "POST",
       headers: {

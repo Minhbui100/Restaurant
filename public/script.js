@@ -184,12 +184,15 @@ checkoutForm.addEventListener("submit", async (event) => {
   const customerPhone = document.getElementById("phone-number").value;
   const paymentMethod = document.getElementById("payment-method").value;
   let cardId = document.getElementById("credit-card-number").value;
-  const expireDate = document.getElementById("expiration-date").value;
+  let expireDate = document.getElementById("expiration-date").value;
   const tip = parseFloat(document.getElementById("tip").value); // Convert to number
   const locationName = document.getElementById("restaurant-location").value;
 
   const orderId = await utilities2.addOrders(cart);
-  console.log(orderId);
+  if (paymentMethod == "cash") {
+    cardId = `cash-${customerPhone}`;
+    expireDate = "N/A";
+  }
   // Create an object to store all data (optional)
   const orderDetails = {
     orderId,
@@ -202,13 +205,9 @@ checkoutForm.addEventListener("submit", async (event) => {
     locationName,
   };
   let totalAfterTip = totalAmount() + tip;
-  console.log("here", customerName, customerPhone);
   await utilities2.addCustomer(customerName, customerPhone);
-  console.log(paymentMethod);
-  if (paymentMethod == "card") {
-    console.log("runn");
-    await utilities2.addCard(cardId, customerName, expireDate, totalAfterTip);
-  }
+
+  await utilities2.addCard(cardId, customerName, expireDate, totalAfterTip);
 
   await utilities2.payment(orderDetails);
   // Show a confirmation message or handle the data as needed
