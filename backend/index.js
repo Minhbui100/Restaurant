@@ -19,12 +19,13 @@ const deleteMenuBtn = document.getElementById("deleteMenu");
 const statusMenuBtn = document.getElementById("setStatus");
 const addCardBtn = document.getElementById("addCard");
 
-
 const deleteAllBillsBtn = document.getElementById("deleteAllBills");
 const deleteAllOrdersBtn = document.getElementById("deleteAllOrders");
 const deleteAllCardsBtn = document.getElementById("deleteAllCards");
 const deleteAllCustomersBtn = document.getElementById("deleteAllCustomers");
-const deleteAllTransactionsBtn = document.getElementById("deleteAllTransactions");
+const deleteAllTransactionsBtn = document.getElementById(
+  "deleteAllTransactions"
+);
 const deleteAllLocationBtn = document.getElementById("deleteAllLocation");
 
 const overallTable = document.getElementById("business_overview_table");
@@ -182,161 +183,156 @@ INSERT INTO menu(Name, Price, Image, Status) VALUES
     ('Spaghetti Carbonara', 14.99, 'https://bellyfull.net/wp-content/uploads/2023/02/Spaghetti-Carbonara-blog-1.jpg', 'Available'),
     ('Caesar Salad', 9.99, 'https://www.allrecipes.com/thmb/JTW0AIVY5PFxqLrf_-CDzT4OZQY=/0x512/filters:no_upscale():max_bytes(150000):strip_icc()/229063-Classic-Restaurant-Caesar-Salad-ddmfs-4x3-231-89bafa5e54dd4a8c933cf2a5f9f12a6f.jpg', 'Out of Stock'),
     ('Cheeseburger Deluxe', 12.99, 'https://www.tysonfoodservice.com/adobe/dynamicmedia/deliver/dm-aid--92a52f1f-9d97-4118-93d0-a54d82e85a68/deluxe-cheeseburger-pickles-onion-pub-burger-137353-768x522.jpg?preferwebp=true&width=1200&quality=75', 'Available'),
-    ('Margherita Pizza', 13.99, 'https://foodbyjonister.com/wp-content/uploads/2020/01/MargheritaPizza.jpg', 'Available'),
+    ('Margherita Pizza', 13.99, 'https://foodbyjonister.com/wp-content/uploads/2020/01/MargheritaPizza.jpg', 'Out of Stock'),
     ('Chocolate Lava Cake', 7.99, 'https://www.melskitchencafe.com/wp-content/uploads/2023/01/updated-lava-cakes7.jpg', 'Available');
 `;
 
-
-
-
-const displayAllTables = function() {
-    customerTable.style.display = "block";
-    cardTable.style.display = "block";
-    billTable.style.display = "block";
-    orderTable.style.display = "block";
-    transactionTable.style.display = "block";
-    locationTable.style.display = "block";
-    menuTable.style.display = "block";
-    overallTable.style.display = "block";
+const displayAllTables = function () {
+  customerTable.style.display = "block";
+  cardTable.style.display = "block";
+  billTable.style.display = "block";
+  orderTable.style.display = "block";
+  transactionTable.style.display = "block";
+  locationTable.style.display = "block";
+  menuTable.style.display = "block";
+  overallTable.style.display = "block";
 };
 
-window.onload = async function() {
-    await utilities.fetchMenu();
-    await utilities.fetchCustomers();
-    await utilities.fetchCards();
-    await utilities.fetchLocation();
-    await utilities.fetchBill();
-    await utilities.fetchOrders();
-    await utilities.fetchTransaction();
-    await utilities.overallview();
-    displayAllTables();
+window.onload = async function () {
+  await utilities.fetchMenu();
+  await utilities.fetchCustomers();
+  await utilities.fetchCards();
+  await utilities.fetchLocation();
+  await utilities.fetchBill();
+  await utilities.fetchOrders();
+  await utilities.fetchTransaction();
+  await utilities.overallview();
+  displayAllTables();
 };
 
 async function createTable(sql) {
-    try {
-        const response = await fetch("http://localhost:3000/createtable", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({ sql }), // Ensure the body is correctly formatted
-        });
+  try {
+    const response = await fetch("http://localhost:3000/createtable", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ sql }), // Ensure the body is correctly formatted
+    });
 
-        if (!response.ok) {
-            // Check for error response status
-            console.error("Server error:", response.status, response.statusText);
-            const errorResponse = await response.json(); // Parse the error body
-            console.error("Error details:", errorResponse.error);
-            utilities.displayWarning(errorResponse.error);
-            return;
-        }
-
-        const result = await response.json(); // Parse the response as JSON
-        console.log("Table creation result:", result);
-    } catch (error) {
-        console.error("Error creating table:", error); // Catch any network or parsing errors
+    if (!response.ok) {
+      // Check for error response status
+      console.error("Server error:", response.status, response.statusText);
+      const errorResponse = await response.json(); // Parse the error body
+      console.error("Error details:", errorResponse.error);
+      utilities.displayWarning(errorResponse.error);
+      return;
     }
+
+    const result = await response.json(); // Parse the response as JSON
+    console.log("Table creation result:", result);
+  } catch (error) {
+    console.error("Error creating table:", error); // Catch any network or parsing errors
+  }
 }
 
-createTableBtn.addEventListener("click", async() => {
-    if (customerTable.style.display != "block") {
-        await createTable(menuTableSql);
-        await utilities.fetchMenu();
+createTableBtn.addEventListener("click", async () => {
+  if (customerTable.style.display != "block") {
+    await createTable(menuTableSql);
+    await utilities.fetchMenu();
 
-        await createTable(customerSql);
-        await utilities.fetchCustomers();
-
-        await createTable(cardTableSql);
-        await utilities.fetchCards();
-
-        await createTable(locaTableSql);
-        await utilities.fetchLocation();
-
-        await createTable(billTableSql);
-        await utilities.fetchBill();
-
-        await createTable(orderTableSql);
-        await utilities.fetchOrders();
-
-        await createTable(txSql);
-        await utilities.fetchTransaction();
-
-        await utilities.overallview();
-
-        displayAllTables();
-        createTableBtn.style.display = 'none';
-
-    }
-});
-
-addOrderBtn.addEventListener("click", async() => {
-    await utilities.addOrders();
-});
-deleteOrderBtn.addEventListener("click", async() => {
-    await utilities.deleteOrders();
-});
-paymentBtn.addEventListener("click", async() => {
-    await utilities.payment();
-});
-addCustomerBtn.addEventListener("click", async() => {
-    await utilities.addCustomer();
-});
-deleteCustomerBtn.addEventListener("click", async() => {
-    await utilities.deleteCustomer();
-});
-addMenuBtn.addEventListener("click", async() => {
-    await utilities.addMenu();
-});
-deleteMenuBtn.addEventListener("click", async() => {
-    await utilities.deleteMenu();
-});
-statusMenuBtn.addEventListener("click", async() => {
-    await utilities.setMenuStatus();
-});
-addCardBtn.addEventListener("click", async() => {
-    await utilities.addCard();
-});
-
-
-deleteAllBillsBtn.addEventListener("click", async() => {
-    await utilities.deleteAllBills();
-    await utilities.fetchBill();
-});
-deleteAllOrdersBtn.addEventListener("click", async() => {
-    await utilities.deleteAllOrders();
-    await utilities.fetchOrders();
-});
-deleteAllCardsBtn.addEventListener("click", async() => {
-    await utilities.deleteAllCards();
-    await utilities.fetchCards();
-});
-deleteAllCustomersBtn.addEventListener("click", async() => {
-    await utilities.deleteAllCustomers();
+    await createTable(customerSql);
     await utilities.fetchCustomers();
-});
-deleteAllTransactionsBtn.addEventListener("click", async() => {
-    await utilities.deleteAllTransactions();
-    await utilities.fetchTransaction();
-});
-deleteAllLocationBtn.addEventListener("click", async() => {
-    await utilities.deleteAllLocation();
+
+    await createTable(cardTableSql);
+    await utilities.fetchCards();
+
+    await createTable(locaTableSql);
     await utilities.fetchLocation();
+
+    await createTable(billTableSql);
+    await utilities.fetchBill();
+
+    await createTable(orderTableSql);
+    await utilities.fetchOrders();
+
+    await createTable(txSql);
+    await utilities.fetchTransaction();
+
+    await utilities.overallview();
+
+    displayAllTables();
+    createTableBtn.style.display = "none";
+  }
 });
-document.querySelectorAll('.dashboard-tab').forEach(button => {
-    button.addEventListener('click', (e) => {
-        const target = e.target.getAttribute('data-target');
 
-        // Hide all forms
-        document.querySelectorAll('.form-container').forEach(form => {
-            form.classList.add('hidden');
-            form.classList.remove('active');
-        });
+addOrderBtn.addEventListener("click", async () => {
+  await utilities.addOrders();
+});
+deleteOrderBtn.addEventListener("click", async () => {
+  await utilities.deleteOrders();
+});
+paymentBtn.addEventListener("click", async () => {
+  await utilities.payment();
+});
+addCustomerBtn.addEventListener("click", async () => {
+  await utilities.addCustomer();
+});
+deleteCustomerBtn.addEventListener("click", async () => {
+  await utilities.deleteCustomer();
+});
+addMenuBtn.addEventListener("click", async () => {
+  await utilities.addMenu();
+});
+deleteMenuBtn.addEventListener("click", async () => {
+  await utilities.deleteMenu();
+});
+statusMenuBtn.addEventListener("click", async () => {
+  await utilities.setMenuStatus();
+});
+addCardBtn.addEventListener("click", async () => {
+  await utilities.addCard();
+});
 
-        // Show the targeted form
-        const targetForm = document.getElementById(target);
-        if (targetForm) {
-            targetForm.classList.remove('hidden');
-            targetForm.classList.add('active');
-        }
+deleteAllBillsBtn.addEventListener("click", async () => {
+  await utilities.deleteAllBills();
+  await utilities.fetchBill();
+});
+deleteAllOrdersBtn.addEventListener("click", async () => {
+  await utilities.deleteAllOrders();
+  await utilities.fetchOrders();
+});
+deleteAllCardsBtn.addEventListener("click", async () => {
+  await utilities.deleteAllCards();
+  await utilities.fetchCards();
+});
+deleteAllCustomersBtn.addEventListener("click", async () => {
+  await utilities.deleteAllCustomers();
+  await utilities.fetchCustomers();
+});
+deleteAllTransactionsBtn.addEventListener("click", async () => {
+  await utilities.deleteAllTransactions();
+  await utilities.fetchTransaction();
+});
+deleteAllLocationBtn.addEventListener("click", async () => {
+  await utilities.deleteAllLocation();
+  await utilities.fetchLocation();
+});
+document.querySelectorAll(".dashboard-tab").forEach((button) => {
+  button.addEventListener("click", (e) => {
+    const target = e.target.getAttribute("data-target");
+
+    // Hide all forms
+    document.querySelectorAll(".form-container").forEach((form) => {
+      form.classList.add("hidden");
+      form.classList.remove("active");
     });
+
+    // Show the targeted form
+    const targetForm = document.getElementById(target);
+    if (targetForm) {
+      targetForm.classList.remove("hidden");
+      targetForm.classList.add("active");
+    }
+  });
 });

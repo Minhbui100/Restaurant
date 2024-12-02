@@ -290,12 +290,12 @@ app.put("/bill/:bill_id", async (req, res) => {
       [customerPhone]
     );
 
-    // Deduct the total amount from the card balance
-    if (cardId != "cash")
-      await pool.query(
-        "UPDATE cards SET balance = balance - $1 WHERE id = $2",
-        [totalAmount, cardId]
-      );
+    // // Deduct the total amount from the card balance
+    // if (cardId != "cash")
+    //   await pool.query(
+    //     "UPDATE cards SET balance = balance - $1 WHERE id = $2",
+    //     [totalAmount, cardId]
+    //   );
 
     const businessBalanceResult = await pool.query(
       "SELECT business_balance FROM transaction ORDER BY tran_id DESC LIMIT 1"
@@ -469,28 +469,46 @@ app.post("/cards", async (req, res) => {
     const existingCard = await pool.query("SELECT * FROM cards WHERE id = $1", [
       id,
     ]);
-
-    let newBalance;
-    if (existingCard.rows.length > 0) {
-      // If card exists, subtract the spend from the current balance
-      const currentBalance = existingCard.rows[0].balance;
-      newBalance = currentBalance - spend;
-
-      // Update the balance for the existing card
-      await pool.query("UPDATE cards SET balance = $1 WHERE id = $2", [
-        newBalance,
-        id,
-      ]);
+    if (id.startsWith("cash")) {
+      if (existingCard.rows.length === 0) {
+        // If card doesn't exist and starts with "cash", add it with balance "N/A"
+        await pool.query(
+          "INSERT INTO cards (id, name, ex_date, balance) VALUES ($1, $2, $3, $4)",
+          [id, name, ex_date, 0]
+        );
+        res.status(200).json({
+          success: true,
+          message: "Card with 'cash' ID added with balance '0'.",
+        });
+      } else {
+        // If card exists and starts with "cash", don't modify balance
+        res.status(200).json({
+          success: true,
+          message: "Card with 'cash' ID already exists. Balance not updated.",
+        });
+      }
     } else {
-      // If card doesn't exist, create a new card with default balance of 1000
-      newBalance = 1000 - spend;
-      await pool.query(
-        "INSERT INTO cards (id, name, ex_date, balance) VALUES ($1, $2, $3, $4)",
-        [id, name, ex_date, newBalance]
-      );
-    }
+      let newBalance;
+      if (existingCard.rows.length > 0) {
+        // If card exists, subtract the spend from the current balance
+        const currentBalance = existingCard.rows[0].balance;
+        newBalance = currentBalance - spend;
 
-    res.status(200).json({ success: true, newBalance });
+        // Update the balance for the existing card
+        await pool.query("UPDATE cards SET balance = $1 WHERE id = $2", [
+          newBalance,
+          id,
+        ]);
+      } else {
+        // If card doesn't exist, create a new card with default balance of 1000
+        newBalance = 1000 - spend;
+        await pool.query(
+          "INSERT INTO cards (id, name, ex_date, balance) VALUES ($1, $2, $3, $4)",
+          [id, name, ex_date, newBalance]
+        );
+      }
+      res.status(200).json({ success: true, newBalance });
+    }
   } catch (error) {
     console.error(error.message);
     res.status(500).json({ success: false, error: error.message });
