@@ -154,8 +154,6 @@ async function fetchTransaction() {
     });
 }
 
-
-
 async function fetchLocation() {
     const response = await fetch("http://localhost:3000/location");
     const location = await response.json();
@@ -181,6 +179,54 @@ async function fetchMenu() {
                         <td>${dish.name}</td>  
                         <td>${dish.price}</td>  
                         <td>${dish.status}</td>            
+                     </tr>`;
+        table.innerHTML += row;
+    });
+}
+
+async function fetchEmployee() {
+    const response = await fetch("http://localhost:3000/employee");
+    const employees = await response.json();
+    const table = document.getElementById("employeeTable");
+    table.innerHTML = "";
+    employees.forEach((employee) => {
+        const row = `<tr>
+                        <td>${employee.name}</td>
+                        <td>${employee.ssn}</td>
+                        <td>${employee.position}</td>     
+                        <td>${employee.location_name}</td>                             
+                     </tr>`;
+        table.innerHTML += row;
+    });
+}
+
+async function fetchSchedule() {
+    const response = await fetch("http://localhost:3000/schedule");
+    const schedules = await response.json();
+    const table = document.getElementById("scheduleTable");
+    table.innerHTML = "";
+    schedules.forEach((schedule) => {
+        const row = `<tr>
+                        <td>${schedule.ssn}</td>
+                        <td>${schedule.work_day}</td>     
+                     </tr>`;
+        table.innerHTML += row;
+    });
+}
+
+async function fetchReview() {
+    const response = await fetch("http://localhost:3000/review");
+    const reviews = await response.json();
+    const table = document.getElementById("reviewTable");
+    table.innerHTML = "";
+    reviews.forEach((review) => {
+        const formattedDate = new Date(review.reviewdate).toISOString().slice(0, 10); // Format date to YYYY-MM-DD
+        const row = `<tr>
+                        <td>${formattedDate}</td>
+                        <td>${review.customer_phone}</td>  
+                        <td>${review.location_name}</td>
+                        <td>${review.rating}</td>
+                        <td>${review.review_text}</td>   
                      </tr>`;
         table.innerHTML += row;
     });
@@ -674,6 +720,9 @@ export {
     fetchTransaction,
     fetchLocation,
     fetchMenu,
+    fetchEmployee,
+    fetchSchedule,
+    fetchReview,
     displayWarning,
     addOrders,
     deleteOrders,
