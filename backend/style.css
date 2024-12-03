@@ -509,3 +509,26 @@ form#locationName label:hover {
     color: #333333;
     font-weight: bold;
 }
+
+#customer_table,
+#order_table,
+#bill_table,
+#card_table,
+#transaction_table,
+#employee_table,
+#schedule_table,
+#review_table {
+    width: 100%;
+    max-height: 300px;
+    /* Adjust height as needed */
+    overflow-y: auto;
+    /* Enable vertical scroll */
+    display: block;
+    /* Make the table block-level for scrolling */
+}
+
+th,
+td {
+    padding: 8px;
+    text-align: left;
+}
