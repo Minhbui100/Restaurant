@@ -66,7 +66,7 @@ async function addCustomer(name, phone) {
   }
 }
 
-async function payment(orderDetails) {
+async function payment(orderDetails, simulation) {
   const {
     orderId,
     customerName,
@@ -97,7 +97,9 @@ async function payment(orderDetails) {
       const warningMessage = await response.text();
       console.log(warningMessage);
     } else if (response.ok) {
-      alert(`Order placed by ${customerName} at ${locationName}.`);
+      if (!simulation) {
+        alert(`Order placed by ${customerName} at ${locationName}.`);
+      }
     } else {
       console.error("An error occurred:", response.statusText);
     }

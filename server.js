@@ -122,12 +122,22 @@ app.get("/menu", async (req, res) => {
 
 app.post("/createtable", async (req, res) => {
   const sql = req.body.sql;
+
+  const client = await pool.connect();
   try {
-    const result = await pool.query(sql);
-    res.status(200).json({ success: true, result: result });
+    await client.query("BEGIN");
+
+    // Execute the SQL statement
+    const result = await client.query(sql);
+
+    await client.query("COMMIT");
+    res.status(200).json({ success: true, result });
   } catch (error) {
+    await client.query("ROLLBACK");
+    console.error("Error creating table:", error.message);
     res.status(500).json({ success: false, error: error.message });
-    console.log("here1", error.message);
+  } finally {
+    client.release();
   }
 });
 
@@ -144,6 +154,7 @@ app.post("/orders", async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
+    await client.query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
     // Insert a new bill and get its ID
     const billResult = await client.query(
@@ -151,22 +162,20 @@ app.post("/orders", async (req, res) => {
     );
     const billId = billResult.rows[0].bill_id;
 
-    // Check if all dishes are available before inserting orders
+    // Check availability of all dishes
     for (const { name } of orders) {
       const statusResult = await client.query(
-        "SELECT status FROM menu WHERE name = $1",
+        "SELECT status FROM menu WHERE name = $1 FOR UPDATE",
         [name]
       );
 
       if (statusResult.rows.length === 0) {
-        // Dish not found in the menu
         return res
           .status(400)
           .send(`The dish "${name}" does not exist in the menu.`);
       }
 
       if (statusResult.rows[0].status === "Out of Stock") {
-        // Dish is not available
         return res.status(400).send(`The dish "${name}" is out of stock.`);
       }
     }
@@ -177,30 +186,33 @@ app.post("/orders", async (req, res) => {
         `('${billId}', '${name}', (SELECT price FROM menu WHERE name = '${name}'), ${quantity})`
     );
     const insertOrdersQuery = `
-            INSERT INTO orders (bill_id, name, price, quantity)
-            VALUES ${orderValues.join(", ")}
-        `;
+              INSERT INTO orders (bill_id, name, price, quantity)
+              VALUES ${orderValues.join(", ")}
+          `;
     await client.query(insertOrdersQuery);
 
-    // Update total and tax for the new bill
+    // Update the bill total and tax
     await client.query(
-      `
-            UPDATE bill
-            SET total = (SELECT COALESCE(SUM(price * quantity), 0) FROM orders WHERE bill_id = $1),
-                tax = total * 0.0625
-            WHERE bill_id = $1;
-        `,
+      `UPDATE bill
+           SET total = (SELECT COALESCE(SUM(price * quantity), 0) FROM orders WHERE bill_id = $1),
+               tax = total * 0.0625
+           WHERE bill_id = $1;`,
       [billId]
     );
-
-    await client.query("UPDATE bill SET tax = total * 0.0625;");
 
     await client.query("COMMIT");
     res.status(201).send(`${billId}`);
   } catch (error) {
     await client.query("ROLLBACK");
-    console.error("Error processing orders:", error);
-    res.status(500).send("An error occurred while processing your request.");
+    if (error.code === "40001") {
+      // Serialization failure, recommend retry
+      res
+        .status(500)
+        .send("Transaction failed due to high contention. Please try again.");
+    } else {
+      console.error("Error processing orders:", error);
+      res.status(500).send("An error occurred while processing your request.");
+    }
   } finally {
     client.release();
   }
@@ -209,43 +221,74 @@ app.post("/orders", async (req, res) => {
 //delete order
 app.delete("/orders/:id", async (req, res) => {
   const { id } = req.params;
+
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
-      "SELECT bill_id FROM Orders WHERE id = $1",
+    await client.query("BEGIN");
+    await client.query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+
+    // Step 1: Check if the order exists and retrieve its bill_id
+    const result = await client.query(
+      "SELECT bill_id FROM orders WHERE id = $1 FOR UPDATE",
       [id]
     );
+
     if (result.rowCount === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).json({ error: "Order not found" });
     }
-    const orderId = result.rows[0].bill_id;
 
-    const result1 = await pool.query(
-      "SELECT paid FROM bill WHERE bill_id = $1",
-      [orderId]
+    const billId = result.rows[0].bill_id;
+
+    // Step 2: Check if the bill is already paid
+    const result1 = await client.query(
+      "SELECT paid FROM bill WHERE bill_id = $1 FOR UPDATE",
+      [billId]
     );
+
     if (result1.rows.length > 0 && result1.rows[0].paid === true) {
+      await client.query("ROLLBACK");
       return res.status(400).send("Warning: The bill ID is already paid");
     }
 
-    await pool.query("DELETE FROM orders WHERE id = $1", [id]);
-    await pool.query(
-      "UPDATE Bill SET total = (SELECT COALESCE(SUM(price * quantity), 0) FROM Orders WHERE Orders.bill_id = Bill.bill_id);"
+    // Step 3: Delete the order
+    await client.query("DELETE FROM orders WHERE id = $1", [id]);
+
+    // Step 4: Update the total and tax in the `bill` table
+    await client.query(
+      `UPDATE bill
+           SET total = (SELECT COALESCE(SUM(price * quantity), 0) FROM orders WHERE bill_id = $1),
+               tax = total * 0.0825
+           WHERE bill_id = $1`,
+      [billId]
     );
-    await pool.query(`
-                                UPDATE Bill SET tax = total * 0.0825 `);
-    // Step 4: Check if there are any remaining orders with this order_id
-    const orderCheck = await pool.query(
-      "SELECT 1 FROM Orders WHERE bill_id = $1",
-      [orderId]
+
+    // Step 5: Check if there are any remaining orders for the bill
+    const orderCheck = await client.query(
+      "SELECT 1 FROM orders WHERE bill_id = $1",
+      [billId]
     );
+
+    // Step 6: If no orders remain, delete the bill
     if (orderCheck.rowCount === 0) {
-      // Step 5: Delete the Bill record if no more orders exist for this order_id
-      await pool.query("DELETE FROM Bill WHERE bill_id = $1", [orderId]);
+      await client.query("DELETE FROM bill WHERE bill_id = $1", [billId]);
     }
+
+    await client.query("COMMIT");
     res.sendStatus(200);
   } catch (err) {
-    console.error(err.message);
-    res.sendStatus(500);
+    await client.query("ROLLBACK");
+
+    if (err.code === "40001") {
+      // Serialization failure
+      console.warn("Serialization failure, recommend retry:", err.message);
+      res.status(503).send("Temporary failure, please retry.");
+    } else {
+      console.error("Error deleting order:", err.message);
+      res.status(500).send("An error occurred while deleting the order.");
+    }
+  } finally {
+    client.release();
   }
 });
 
@@ -253,16 +296,21 @@ app.delete("/orders/:id", async (req, res) => {
 app.put("/bill/:bill_id", async (req, res) => {
   const { bill_id } = req.params;
   const { customerPhone, locationName, tip, cardId } = req.body;
-  console.log(locationName);
+
+  const client = await pool.connect();
   try {
-    // Retrieve the current bill details including total, tip, and tax
-    const billResult = await pool.query(
-      "SELECT total, tip, tax, paid FROM bill WHERE bill_id = $1",
+    await client.query("BEGIN");
+    await client.query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+
+    // Step 1: Retrieve the bill details with a lock
+    const billResult = await client.query(
+      "SELECT total, tip, tax, paid FROM bill WHERE bill_id = $1 FOR UPDATE",
       [bill_id]
     );
 
-    // If the bill does not exist, send an error
+    // Check if the bill exists
     if (billResult.rowCount === 0) {
+      await client.query("ROLLBACK");
       return res.status(404).send("Bill not found");
     }
 
@@ -270,59 +318,63 @@ app.put("/bill/:bill_id", async (req, res) => {
 
     // Check if the bill is already paid
     if (billData.paid) {
+      await client.query("ROLLBACK");
       return res.status(400).send("Warning: The bill ID is already paid");
     }
 
-    // Update the bill to mark it as paid
-    await pool.query(
-      "UPDATE bill SET cust_phone = $1, tip=$2, card_id = $3, paid = TRUE, location_name=$4 WHERE bill_id = $5",
-      [customerPhone, tip, cardId, locationName, bill_id]
-    );
-
-    // Calculate the total amount to deduct from the card balance
+    // Step 2: Calculate the total amount including tip and tax
     const formattedTotalAmount =
       parseFloat(billData.total) + parseFloat(tip) + parseFloat(billData.tax);
     const totalAmount = parseFloat(formattedTotalAmount.toFixed(2));
 
-    // Update the customer's membership points
-    await pool.query(
+    // Step 3: Update the bill to mark it as paid
+    await client.query(
+      `UPDATE bill
+           SET cust_phone = $1, tip = $2, card_id = $3, paid = TRUE, location_name = $4
+           WHERE bill_id = $5`,
+      [customerPhone, tip, cardId, locationName, bill_id]
+    );
+
+    // Step 4: Update the customer's membership points
+    await client.query(
       "UPDATE customers SET membership_point = membership_point + 1 WHERE phone = $1",
       [customerPhone]
     );
 
-    // // Deduct the total amount from the card balance
-    // if (cardId != "cash")
-    //   await pool.query(
-    //     "UPDATE cards SET balance = balance - $1 WHERE id = $2",
-    //     [totalAmount, cardId]
-    //   );
-
-    const businessBalanceResult = await pool.query(
+    // Step 5: Retrieve the current business balance
+    const businessBalanceResult = await client.query(
       "SELECT business_balance FROM transaction ORDER BY tran_id DESC LIMIT 1"
     );
 
     const currentBusinessBalance =
       businessBalanceResult.rowCount > 0
         ? businessBalanceResult.rows[0].business_balance
-        : 5000.0; // Set to default if no transactions
+        : 5000.0; // Default balance if no transactions exist
 
-    // Calculate the new business balance
     const x = parseFloat(currentBusinessBalance) + parseFloat(totalAmount);
-    const newcurrentBusinessBalance = parseFloat(x.toFixed(2));
-    console.log(currentBusinessBalance, totalAmount, newcurrentBusinessBalance);
+    const newBusinessBalance = parseFloat(x.toFixed(2));
+    console.log(currentBusinessBalance, totalAmount, newBusinessBalance);
 
-    // Insert the transaction record
-    await pool.query(
-      `
-                                INSERT INTO transaction(total, from_bankacct, business_balance) VALUES($1, $2, $3)
-                                `,
-      [formattedTotalAmount, cardId, newcurrentBusinessBalance]
+    // Step 7: Insert a transaction record
+    await client.query(
+      `INSERT INTO transaction(total, from_bankacct, business_balance)
+           VALUES ($1, $2, $3)`,
+      [formattedTotalAmount, cardId, newBusinessBalance]
     );
 
+    await client.query("COMMIT");
     res.sendStatus(200);
   } catch (err) {
-    console.error("Error processing the request:", err.message);
-    res.sendStatus(500);
+    await client.query("ROLLBACK");
+    if (err.code === "40001") {
+      console.warn("Serialization failure, retrying:", err.message);
+      res.status(503).send("Temporary failure, please retry.");
+    } else {
+      console.error("Error processing the payment:", err.message);
+      res.status(500).send("An error occurred while processing the payment.");
+    }
+  } finally {
+    client.release();
   }
 });
 
@@ -330,107 +382,183 @@ app.put("/bill/:bill_id", async (req, res) => {
 app.post("/customers", async (req, res) => {
   const { name, phone } = req.body;
 
-  // Check if both name and phone are provided
+  // Validate input
   if (!name || !phone) {
     return res.status(400).send("Name and phone are required.");
   }
 
+  const client = await pool.connect();
   try {
+    await client.query("BEGIN");
+
     // Check if the customer already exists
-    const customerCheck = await pool.query(
-      "SELECT * FROM customers WHERE phone = $1",
+    const customerCheck = await client.query(
+      "SELECT * FROM customers WHERE phone = $1 FOR UPDATE",
       [phone]
     );
 
     if (customerCheck.rowCount > 0) {
-      // Customer exists, return their details
+      await client.query("ROLLBACK");
       return res.status(200).json({
         message: "Customer already exists.",
         customer: customerCheck.rows[0],
       });
     }
 
-    // Customer does not exist, insert into the table
-    await pool.query("INSERT INTO customers (name, phone) VALUES ($1, $2)", [
+    // Insert the new customer
+    await client.query("INSERT INTO customers (name, phone) VALUES ($1, $2)", [
       name,
       phone,
     ]);
 
     // Retrieve the newly inserted customer
-    const newCustomer = await pool.query(
+    const newCustomer = await client.query(
       "SELECT * FROM customers WHERE phone = $1",
       [phone]
     );
 
+    await client.query("COMMIT");
     res.status(201).json({
       message: "Customer added successfully.",
       customer: newCustomer.rows[0],
     });
   } catch (err) {
+    await client.query("ROLLBACK");
+
+    // Handle unique constraint violation
+    if (err.code === "23505") {
+      return res.status(409).json({
+        message: "A customer with this phone number already exists.",
+      });
+    }
+
     console.error("Error handling customers:", err.message);
     res.sendStatus(500); // Internal server error
+  } finally {
+    client.release();
   }
 });
 
 //delete customer
 app.delete("/customers/:phone", async (req, res) => {
   const { phone } = req.params;
+
+  const client = await pool.connect();
   try {
-    const result = await pool.query(
-      "SELECT phone FROM customers WHERE phone = $1",
+    await client.query("BEGIN");
+
+    // Step 1: Check if the customer exists and lock the row
+    const result = await client.query(
+      "SELECT phone FROM customers WHERE phone = $1 FOR UPDATE",
       [phone]
     );
+
     if (result.rowCount === 0) {
-      return res.sendStatus(400);
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Customer not found" });
     }
-    await pool.query("DELETE FROM customers WHERE phone = $1", [phone]);
-    res.sendStatus(201); // Successfully
+
+    // Step 2: Delete the customer
+    await client.query("DELETE FROM customers WHERE phone = $1", [phone]);
+
+    await client.query("COMMIT");
+    res.sendStatus(200); // Successfully deleted
   } catch (err) {
-    console.error(err.message);
-    res.sendStatus(500);
+    await client.query("ROLLBACK");
+
+    console.error("Error deleting customer:", err.message);
+    res
+      .status(500)
+      .json({ error: "An error occurred while deleting the customer." });
+  } finally {
+    client.release();
   }
 });
 
 //add menu
 app.post("/menu", async (req, res) => {
   const { name, price, image } = req.body;
-  // Check if both id and name are provided
+
+  // Validate input
   if (!name || !price) {
     return res.status(400).send("Name, price, and image URL are required");
   }
+
+  const client = await pool.connect();
   try {
-    const billCheck = await pool.query("SELECT 1 FROM menu WHERE name = $1", [
-      name,
-    ]);
-    if (billCheck.rowCount === 1) {
-      return res.status(400).send("This dish name is already used.");
+    await client.query("BEGIN");
+
+    // Check if the menu item already exists
+    const menuCheck = await client.query(
+      "SELECT 1 FROM menu WHERE name = $1 FOR UPDATE",
+      [name]
+    );
+
+    if (menuCheck.rowCount > 0) {
+      await client.query("ROLLBACK");
+      return res
+        .status(409)
+        .json({ message: "This dish name is already used." });
     }
-    await pool.query(
+
+    // Insert the new menu item
+    await client.query(
       "INSERT INTO menu (name, price, image, status) VALUES ($1, $2, $3, 'Available')",
       [name, price, image]
     );
+
+    await client.query("COMMIT");
     res.sendStatus(201); // Successfully created
   } catch (err) {
-    console.error(err.message);
-    res.sendStatus(500);
+    await client.query("ROLLBACK");
+
+    // Handle unique constraint violation
+    if (err.code === "23505") {
+      return res
+        .status(409)
+        .json({ message: "This dish name is already used." });
+    }
+
+    console.error("Error adding menu item:", err.message);
+    res.status(500).send("An error occurred while adding the menu item.");
+  } finally {
+    client.release();
   }
 });
 
 //delete menu
 app.delete("/menu/:name", async (req, res) => {
   const { name } = req.params;
+
+  const client = await pool.connect();
   try {
-    const result = await pool.query("SELECT name FROM menu WHERE name = $1", [
-      name,
-    ]);
+    await client.query("BEGIN");
+
+    // Step 1: Check if the menu item exists and lock the row
+    const result = await client.query(
+      "SELECT name FROM menu WHERE name = $1 FOR UPDATE",
+      [name]
+    );
+
     if (result.rowCount === 0) {
-      return res.sendStatus(400);
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Menu item not found" });
     }
-    await pool.query("DELETE FROM menu WHERE name = $1", [name]);
-    res.sendStatus(201); // Successfully
+
+    // Step 2: Delete the menu item
+    await client.query("DELETE FROM menu WHERE name = $1", [name]);
+
+    await client.query("COMMIT");
+    res.sendStatus(200); // Successfully deleted
   } catch (err) {
-    console.error(err.message);
-    res.sendStatus(500);
+    await client.query("ROLLBACK");
+
+    console.error("Error deleting menu item:", err.message);
+    res
+      .status(500)
+      .json({ error: "An error occurred while deleting the menu item." });
+  } finally {
+    client.release();
   }
 });
 
@@ -464,76 +592,135 @@ app.put("/menu/status/:name", async (req, res) => {
 app.post("/cards", async (req, res) => {
   const { id, name, ex_date, spend } = req.body;
 
+  // Validate input
+  if (!id || !name || !ex_date || !spend) {
+    return res
+      .status(400)
+      .json({ success: false, message: "All fields are required." });
+  }
+
+  const client = await pool.connect();
   try {
-    // First, check if the card exists
-    const existingCard = await pool.query("SELECT * FROM cards WHERE id = $1", [
-      id,
-    ]);
+    await client.query("BEGIN");
+
+    // Step 1: Check if the card exists and lock the row
+    const existingCardResult = await client.query(
+      "SELECT * FROM cards WHERE id = $1 FOR UPDATE",
+      [id]
+    );
+
+    let newBalance;
+
     if (id.startsWith("cash")) {
-      if (existingCard.rows.length === 0) {
-        // If card doesn't exist and starts with "cash", add it with balance "N/A"
-        await pool.query(
+      if (existingCardResult.rowCount === 0) {
+        // If card doesn't exist and starts with "cash", add it with balance "0"
+        await client.query(
           "INSERT INTO cards (id, name, ex_date, balance) VALUES ($1, $2, $3, $4)",
           [id, name, ex_date, 0]
         );
+        newBalance = 0;
         res.status(200).json({
           success: true,
           message: "Card with 'cash' ID added with balance '0'.",
         });
       } else {
         // If card exists and starts with "cash", don't modify balance
+        newBalance = existingCardResult.rows[0].balance;
         res.status(200).json({
           success: true,
           message: "Card with 'cash' ID already exists. Balance not updated.",
         });
       }
     } else {
-      let newBalance;
-      if (existingCard.rows.length > 0) {
+      if (existingCardResult.rowCount > 0) {
         // If card exists, subtract the spend from the current balance
-        const currentBalance = existingCard.rows[0].balance;
+        const currentBalance = existingCardResult.rows[0].balance;
         newBalance = currentBalance - spend;
 
+        // Ensure balance does not go below 0
+        if (newBalance < 0) {
+          await client.query("ROLLBACK");
+          return res.status(400).json({
+            success: false,
+            message: "Insufficient balance to complete the transaction.",
+          });
+        }
+
         // Update the balance for the existing card
-        await pool.query("UPDATE cards SET balance = $1 WHERE id = $2", [
+        await client.query("UPDATE cards SET balance = $1 WHERE id = $2", [
           newBalance,
           id,
         ]);
       } else {
-        // If card doesn't exist, create a new card with default balance of 1000
+        // If card doesn't exist, create a new card with a default balance of 1000
         newBalance = 1000 - spend;
-        await pool.query(
+        await client.query(
           "INSERT INTO cards (id, name, ex_date, balance) VALUES ($1, $2, $3, $4)",
           [id, name, ex_date, newBalance]
         );
       }
       res.status(200).json({ success: true, newBalance });
     }
+
+    await client.query("COMMIT");
   } catch (error) {
-    console.error(error.message);
+    await client.query("ROLLBACK");
+
+    console.error("Error processing card transaction:", error.message);
     res.status(500).json({ success: false, error: error.message });
+  } finally {
+    client.release();
   }
 });
+
 //delete all customer
 app.delete("/customers", async (req, res) => {
+  const client = await pool.connect();
   try {
-    const result = await pool.query("delete from customers;");
+    await client.query("BEGIN");
 
-    res.sendStatus(200); // Send OK response
+    // Step 1: Lock all customers (if necessary)
+    await client.query("SELECT 1 FROM customers FOR UPDATE");
+
+    // Step 2: Delete all customers
+    await client.query("DELETE FROM customers");
+
+    await client.query("COMMIT");
+    res.sendStatus(200); // Successfully deleted
   } catch (err) {
+    await client.query("ROLLBACK");
+
     console.error("Error deleting rows from customer table:", err.message);
     res.status(500).json({ error: err.message }); // Internal server error
+  } finally {
+    client.release();
   }
 });
 
 //delete all bill
 app.delete("/bill", async (req, res) => {
+  const client = await pool.connect();
   try {
-    await pool.query("delete from bill;");
-    res.sendStatus(200); // Send OK response
+    await client.query("BEGIN");
+
+    // Step 1: Lock the rows in the bill table (if needed)
+    // This may not be strictly necessary for a delete-all operation but useful for complex scenarios
+    await client.query("SELECT 1 FROM bill FOR UPDATE");
+
+    // Step 2: Delete all records from the bill table
+    await client.query("DELETE FROM bill");
+
+    // Step 3: Commit the transaction
+    await client.query("COMMIT");
+    res.sendStatus(200); // Successfully deleted
   } catch (err) {
+    // Rollback in case of error
+    await client.query("ROLLBACK");
+
     console.error("Error deleting rows from bill table:", err.message);
     res.status(500).json({ error: err.message }); // Return detailed error
+  } finally {
+    client.release();
   }
 });
 

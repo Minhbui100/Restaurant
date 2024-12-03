@@ -1,6 +1,7 @@
 import * as utilities2 from "./utilities2.js";
 
 const menuItems = await utilities2.getMenuItems();
+console.log(menuItems);
 // Cart data structure
 let cart = [];
 const checkoutBtn = document.getElementById("checkout-btn");
@@ -11,13 +12,14 @@ const total = document.getElementById("total");
 const checkoutForm = document.getElementById("checkout-form");
 const paymentMethodSelect = document.getElementById("payment-method");
 const creditCardField = document.getElementById("credit-card-field");
+const simulationBtn = document.getElementById("simulationBtn");
 // Render the menu
 
 function refreshPageAfterCheckout() {
   // Reset form fields to empty
   document.getElementById("customer-name").value = "";
   document.getElementById("phone-number").value = "";
-  document.getElementById("payment-method").value = "cash"; // Reset to default (if applicable)
+  document.getElementById("payment-method").value = "card"; // Reset to default (if applicable)
   document.getElementById("credit-card-number").value = "";
   document.getElementById("expiration-date").value = "";
   document.getElementById("tip").value = "";
@@ -191,6 +193,33 @@ exitCheckoutBtn.addEventListener("click", () => {
   cartModal.classList.remove("hidden");
 });
 
+const checkout = async (orderDetails, cartItems, simulation) => {
+  const orderId = await utilities2.addOrders(cartItems);
+  console.log("hiii");
+  let {
+    customerName,
+    customerPhone,
+    paymentMethod,
+    cardId,
+    expireDate,
+    tip,
+    locationName,
+  } = orderDetails;
+  if (paymentMethod == "cash") {
+    cardId = `cash-${customerPhone}`;
+    expireDate = "N/A";
+  }
+  // Create an object to store all data (optional)
+  orderDetails = { ...orderDetails, orderId };
+  let totalAfterTip = totalAmount() + tip;
+  await utilities2.addCustomer(customerName, customerPhone);
+
+  await utilities2.addCard(cardId, customerName, expireDate, totalAfterTip);
+
+  await utilities2.payment(orderDetails, simulation);
+  refreshPageAfterCheckout();
+};
+
 // Add an event listener for form submission
 checkoutForm.addEventListener("submit", async (event) => {
   // Prevent the form from reloading the page
@@ -204,15 +233,7 @@ checkoutForm.addEventListener("submit", async (event) => {
   let expireDate = document.getElementById("expiration-date").value;
   const tip = parseFloat(document.getElementById("tip").value); // Convert to number
   const locationName = document.getElementById("restaurant-location").value;
-
-  const orderId = await utilities2.addOrders(cart);
-  if (paymentMethod == "cash") {
-    cardId = `cash-${customerPhone}`;
-    expireDate = "N/A";
-  }
-  // Create an object to store all data (optional)
   const orderDetails = {
-    orderId,
     customerName,
     customerPhone,
     paymentMethod,
@@ -221,13 +242,7 @@ checkoutForm.addEventListener("submit", async (event) => {
     tip,
     locationName,
   };
-  let totalAfterTip = totalAmount() + tip;
-  await utilities2.addCustomer(customerName, customerPhone);
-
-  await utilities2.addCard(cardId, customerName, expireDate, totalAfterTip);
-
-  await utilities2.payment(orderDetails);
-  refreshPageAfterCheckout();
+  await checkout(orderDetails, cart, false);
   // Show a confirmation message or handle the data as needed
 });
 
@@ -239,6 +254,150 @@ paymentMethodSelect.addEventListener("change", function () {
     creditCardField.classList.add("hidden"); // Hide credit card input
   }
 });
+// Generate a random customer phone number
+const generateRandomPhoneNumber = () => {
+  return `${Math.floor(1000000000 + Math.random() * 9000000000)}`;
+};
 
+const generateRandomName = () => {
+  const firstNames = [
+    "John",
+    "Jane",
+    "Michael",
+    "Emily",
+    "David",
+    "Sarah",
+    "James",
+    "Anna",
+    "Robert",
+    "Sophia",
+  ];
+  const lastNames = [
+    "Smith",
+    "Johnson",
+    "Williams",
+    "Brown",
+    "Jones",
+    "Garcia",
+    "Miller",
+    "Davis",
+    "Martinez",
+    "Hernandez",
+  ];
+
+  const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
+  const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
+  const name = `${firstName} ${lastName}`;
+
+  return name;
+};
+
+// Generate a random location from the available 3 locations
+const generateRandomLocation = () => {
+  const locations = [
+    "Big Bend Fast Food",
+    "Yosemite Fast Food",
+    "Guadalupe Mountains Fast Food",
+    "Carlsbad Caverns Fast Food",
+    "Arches Fast Food",
+    "Zion Fast Food",
+    "Rocky Mountain Fast Food",
+    "Redwood Fast Food",
+  ];
+  return locations[Math.floor(Math.random() * locations.length)];
+};
+
+// Generate a random credit card number (Visa card starting with 4, 16 digits)
+const generateRandomCreditCardNumber = () => {
+  const cardNumber =
+    "4" + Math.floor(100000000000000 + Math.random() * 900000000000000); // 16 digits starting with '4'
+  return cardNumber;
+};
+
+// Generate a random expiration date (between 1 to 3 years from now)
+const generateRandomExpirationDate = () => {
+  const currentYear = new Date().getFullYear();
+  const expirationYear = currentYear + Math.floor(Math.random() * 3) + 1; // 1 to 3 years from now
+  const expirationMonth = Math.floor(Math.random() * 12) + 1; // Month from 1 to 12
+  return `${expirationMonth.toString().padStart(2, "0")}/${expirationYear
+    .toString()
+    .slice(2)}`;
+};
+
+// Generate a random tip between 1 and 10
+const generateRandomTip = () => {
+  return (Math.floor(Math.random() * 10) + 1).toFixed(2); // Random tip between 1 and 10
+};
+
+const generateRandomCart = (menu) => {
+  const cartRandom = [];
+  const availableItems = menu.filter((item) => item.status === "Available");
+  console.log(availableItems);
+  // Determine the number of items in the cart (1 to 3 items randomly)
+  const numItems = Math.floor(Math.random() * 3) + 1;
+
+  for (let i = 0; i < numItems; i++) {
+    // Select a random item from the available items
+    const randomIndex = Math.floor(Math.random() * availableItems.length);
+    const item = availableItems[randomIndex];
+
+    // Assign a random quantity (1 to 5) to the selected item
+    const quantity = Math.floor(Math.random() * 5) + 1;
+
+    // Add the item with quantity to the cart
+    cartRandom.push({ ...item, quantity });
+
+    // Optionally remove the selected item from available items to avoid duplicates
+    availableItems.splice(randomIndex, 1);
+  }
+
+  return cartRandom;
+};
+
+const simulateCustomerOrders = async () => {
+  const customers = [];
+  const orders = [];
+  for (let i = 0; i < 100; i++) {
+    const customerName = generateRandomName();
+    const customerPhone = generateRandomPhoneNumber();
+    const locationName = generateRandomLocation();
+    const paymentMethod = "card";
+    const cardId = generateRandomCreditCardNumber();
+    const expireDate = generateRandomExpirationDate();
+    const tip = generateRandomTip();
+    console.log(
+      customerName,
+      customerPhone,
+      locationName,
+      cardId,
+      expireDate,
+      tip
+    );
+    // customers.push({ name: customerName, phone: customerPhone });
+    const cartRandom = generateRandomCart(menuItems);
+    console.log(cartRandom);
+    const orderDetails = {
+      customerName,
+      customerPhone,
+      paymentMethod,
+      cardId,
+      expireDate,
+      tip,
+      locationName,
+    };
+    await checkout(orderDetails, cartRandom, true);
+  }
+};
+simulationBtn.addEventListener("click", async () => {
+  try {
+    await simulateCustomerOrders();
+    alert("100 customers ordered- simulation completed");
+  } catch (e) {
+    alert("Error during simulation", e);
+  }
+  // await simulateCustomerOrders().catch((e) => {
+  //   alert("Error during simulation", e);
+  // });
+});
 // Initialize the menu
 renderMenu();
