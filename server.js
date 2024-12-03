@@ -120,6 +120,35 @@ app.get("/menu", async (req, res) => {
   }
 });
 
+//Minh
+app.get("/employee", async(req, res) => {
+    try {
+        const result = await pool.query(`select * from employee order by location_name, name;`);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.sendStatus(500);
+    }
+});
+app.get("/schedule", async(req, res) => {
+    try {
+        const result = await pool.query(`select * from schedule order by ssn;`);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.sendStatus(500);
+    }
+});
+app.get("/review", async(req, res) => {
+    try {
+        const result = await pool.query(`select * from review order by reviewdate, location_name;`);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.sendStatus(500);
+    }
+});
+
 app.post("/createtable", async (req, res) => {
   const sql = req.body.sql;
 
@@ -771,3 +800,6 @@ app.delete("/location", async (req, res) => {
 app.listen(3000, () => {
   console.log("Server is running on port 3000 - localhost:3000 ");
 });
+
+
+
