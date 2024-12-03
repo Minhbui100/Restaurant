@@ -4,7 +4,7 @@ HOW TO RUN OUR PROGRAM
 NOTE: CURRENT WORKING DIRECTORY/FOLDER WILL BE "Restaurant"
 
 Step 1: Install dependencies:
-npm install express pg body-parser cors
+npm install express pg body-parser cors fs
 
 Step 2: Create database named "restaurant" in your localhost by using this command
 "CREATE DATABASE restaurant;"
