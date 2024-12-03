@@ -58,6 +58,9 @@
         <button class="dashboard-tab" data-target="locationForm">Active Location</button>
         <button class="dashboard-tab" data-target="transactionForm">Business Transaction</button>
         <button class="dashboard-tab" data-target="cardForm">Edit Customer Card</button>
+        <button class="dashboard-tab" data-target="employeeForm">Employee</button>
+        <button class="dashboard-tab" data-target="scheduleForm">Employee Schedule</button>
+        <button class="dashboard-tab" data-target="reviewForm">Review</button>
         <button class="dashboard-tab" data-target="deleteDataTableForm">Delete All Tables</button>
     </div>
     <div class="forms-container">
@@ -161,7 +164,7 @@
         <!-- Customer form container -->
         <div class="form-container hidden" id="customerForm">
             <!-- Customer Info Table -->
-            <h2>Customer Infomation</h2>
+            <h2>Customer Information</h2>
             <table id="customer_table" style="display: none">
                 <thead>
                     <tr>
@@ -181,7 +184,6 @@
             <h2>Delete Customer</h2>
             <input type="text" id="custDelete" placeholder="Customer phone" />
             <button id="deleteCustomer">Delete Customer</button>
-
         </div>
     </div>
     <div class="forms-container">
@@ -258,6 +260,54 @@
             <button id="addCard">Add Card</button>
         </div>
     </div>
+    <div class="forms-container">
+        <div class="form-container hidden" id="employeeForm">
+            <h2>Employee Information</h2>
+            <table id="employee_table" style="display: none">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>SSN</th>
+                        <th>Position</th>
+                        <th>Restaurant Location</th>
+                    </tr>
+                </thead>
+                <tbody id="employeeTable"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="forms-container">
+        <div class="form-container hidden" id="scheduleForm">
+            <h2>Employee Schedule</h2>
+            <table id="schedule_table" style="display: none">
+                <thead>
+                    <tr>
+                        <th>SSN</th>
+                        <th>Work Day</th>
+                    </tr>
+                </thead>
+                <tbody id="scheduleTable"></tbody>
+            </table>
+        </div>
+    </div>
+    <div class="forms-container">
+        <div class="form-container hidden" id="reviewForm">
+            <h2>Reivews From Google And Yelp</h2>
+            <table id="review_table" style="display: none">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Customer Phone</th>
+                        <th>Location</th>
+                        <th>Rating</th>
+                        <th>Text</th>
+                    </tr>
+                </thead>
+                <tbody id="reviewTable"></tbody>
+            </table>
+        </div>
+    </div>
+
     <div class="forms-container">
         <!-- Delete Data Table form container -->
         <div class="form-container hidden" id="deleteDataTableForm">
