@@ -29,8 +29,6 @@ const pool = new Pool({
   port: config.port,
 });
 
-console.log(pool);
-
 app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "backendGUI")); // Serve backend.html for root URL
 });
@@ -121,32 +119,36 @@ app.get("/menu", async (req, res) => {
 });
 
 //Minh
-app.get("/employee", async(req, res) => {
-    try {
-        const result = await pool.query(`select * from employee order by location_name, name;`);
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err.message);
-        res.sendStatus(500);
-    }
+app.get("/employee", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `select * from employee order by location_name, name;`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.sendStatus(500);
+  }
 });
-app.get("/schedule", async(req, res) => {
-    try {
-        const result = await pool.query(`select * from schedule order by ssn;`);
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err.message);
-        res.sendStatus(500);
-    }
+app.get("/schedule", async (req, res) => {
+  try {
+    const result = await pool.query(`select * from schedule order by ssn;`);
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.sendStatus(500);
+  }
 });
-app.get("/review", async(req, res) => {
-    try {
-        const result = await pool.query(`select * from review order by reviewdate, location_name;`);
-        res.json(result.rows);
-    } catch (err) {
-        console.error(err.message);
-        res.sendStatus(500);
-    }
+app.get("/review", async (req, res) => {
+  try {
+    const result = await pool.query(
+      `select * from review order by reviewdate, location_name;`
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.sendStatus(500);
+  }
 });
 
 app.post("/createtable", async (req, res) => {
@@ -170,14 +172,13 @@ app.post("/createtable", async (req, res) => {
   }
 });
 
-//add order
 app.post("/orders", async (req, res) => {
   const { orders } = req.body;
 
   if (!orders || orders.length === 0) {
     return res
       .status(400)
-      .send("Please select at least one dish with a valid quantity");
+      .send("Please select at least one dish with a valid quantity.");
   }
 
   const client = await pool.connect();
@@ -191,43 +192,41 @@ app.post("/orders", async (req, res) => {
     );
     const billId = billResult.rows[0].bill_id;
 
-    // Check availability of all dishes
-    for (const { name } of orders) {
-      const statusResult = await client.query(
-        "SELECT status FROM menu WHERE name = $1 FOR UPDATE",
-        [name]
-      );
-
-      if (statusResult.rows.length === 0) {
-        return res
-          .status(400)
-          .send(`The dish "${name}" does not exist in the menu.`);
-      }
-
-      if (statusResult.rows[0].status === "Out of Stock") {
-        return res.status(400).send(`The dish "${name}" is out of stock.`);
-      }
-    }
-
-    // Insert all orders
-    const orderValues = orders.map(
-      ({ name, quantity }) =>
-        `('${billId}', '${name}', (SELECT price FROM menu WHERE name = '${name}'), ${quantity})`
-    );
+    // Check availability and insert orders in a single query
+    const orderValues = orders
+      .map(({ name, quantity }) => `('${name}', ${quantity})`)
+      .join(", ");
     const insertOrdersQuery = `
-              INSERT INTO orders (bill_id, name, price, quantity)
-              VALUES ${orderValues.join(", ")}
-          `;
-    await client.query(insertOrdersQuery);
+      WITH valid_dishes AS (
+        SELECT name, price, status
+        FROM menu
+        WHERE name IN (${orders.map(({ name }) => `'${name}'`).join(", ")})
+      ),
+      checked_dishes AS (
+        SELECT name, price
+        FROM valid_dishes
+        WHERE status = 'Available'
+      )
+      INSERT INTO orders (bill_id, name, price, quantity)
+      SELECT $1, checked_dishes.name, checked_dishes.price, orders_data.quantity
+      FROM checked_dishes
+      JOIN (VALUES ${orderValues}) AS orders_data(name, quantity)
+      ON checked_dishes.name = orders_data.name;
+    `;
+    await client.query(insertOrdersQuery, [billId]);
 
     // Update the bill total and tax
-    await client.query(
-      `UPDATE bill
-           SET total = (SELECT COALESCE(SUM(price * quantity), 0) FROM orders WHERE bill_id = $1),
-               tax = total * 0.0625
-           WHERE bill_id = $1;`,
-      [billId]
-    );
+    const updateBillQuery = `
+      UPDATE bill
+      SET total = (
+          SELECT COALESCE(SUM(price * quantity), 0)
+          FROM orders
+          WHERE bill_id = $1
+      ),
+      tax = total * 0.0625
+      WHERE bill_id = $1;
+    `;
+    await client.query(updateBillQuery, [billId]);
 
     await client.query("COMMIT");
     res.status(201).send(`${billId}`);
@@ -331,68 +330,61 @@ app.put("/bill/:bill_id", async (req, res) => {
     await client.query("BEGIN");
     await client.query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
-    // Step 1: Retrieve the bill details with a lock
-    const billResult = await client.query(
-      "SELECT total, tip, tax, paid FROM bill WHERE bill_id = $1 FOR UPDATE",
-      [bill_id]
-    );
+    const query = `
+      WITH bill_data AS (
+        SELECT 
+          total, tax, paid
+        FROM bill
+        WHERE bill_id = $1
+        FOR UPDATE
+      ),
+      updated_bill AS (
+        UPDATE bill
+        SET 
+          cust_phone = $2,
+          tip = $3,
+          card_id = $4,
+          paid = TRUE,
+          location_name = $5
+        WHERE bill_id = $1
+        RETURNING (total + $3 + tax) AS total_amount
+      ),
+      increment_points AS (
+        UPDATE customers
+        SET membership_point = membership_point + 1
+        WHERE phone = $2
+      ),
+      current_balance AS (
+        SELECT 
+          COALESCE(
+            (SELECT business_balance FROM transaction ORDER BY tran_id DESC LIMIT 1), 
+            5000.0
+          ) AS current_balance
+      ),
+      new_transaction AS (
+        INSERT INTO transaction (total, from_bankacct, business_balance)
+        SELECT 
+          ub.total_amount, 
+          $4, 
+          cb.current_balance + ub.total_amount
+        FROM updated_bill ub, current_balance cb
+        RETURNING business_balance
+      )
+      SELECT business_balance FROM new_transaction;
+    `;
 
-    // Check if the bill exists
-    if (billResult.rowCount === 0) {
-      await client.query("ROLLBACK");
-      return res.status(404).send("Bill not found");
-    }
-
-    const billData = billResult.rows[0];
-
-    // Check if the bill is already paid
-    if (billData.paid) {
-      await client.query("ROLLBACK");
-      return res.status(400).send("Warning: The bill ID is already paid");
-    }
-
-    // Step 2: Calculate the total amount including tip and tax
-    const formattedTotalAmount =
-      parseFloat(billData.total) + parseFloat(tip) + parseFloat(billData.tax);
-    const totalAmount = parseFloat(formattedTotalAmount.toFixed(2));
-
-    // Step 3: Update the bill to mark it as paid
-    await client.query(
-      `UPDATE bill
-           SET cust_phone = $1, tip = $2, card_id = $3, paid = TRUE, location_name = $4
-           WHERE bill_id = $5`,
-      [customerPhone, tip, cardId, locationName, bill_id]
-    );
-
-    // Step 4: Update the customer's membership points
-    await client.query(
-      "UPDATE customers SET membership_point = membership_point + 1 WHERE phone = $1",
-      [customerPhone]
-    );
-
-    // Step 5: Retrieve the current business balance
-    const businessBalanceResult = await client.query(
-      "SELECT business_balance FROM transaction ORDER BY tran_id DESC LIMIT 1"
-    );
-
-    const currentBusinessBalance =
-      businessBalanceResult.rowCount > 0
-        ? businessBalanceResult.rows[0].business_balance
-        : 5000.0; // Default balance if no transactions exist
-
-    const x = parseFloat(currentBusinessBalance) + parseFloat(totalAmount);
-    const newBusinessBalance = parseFloat(x.toFixed(2));
-    console.log(currentBusinessBalance, totalAmount, newBusinessBalance);
-
-    // Step 7: Insert a transaction record
-    await client.query(
-      `INSERT INTO transaction(total, from_bankacct, business_balance)
-           VALUES ($1, $2, $3)`,
-      [formattedTotalAmount, cardId, newBusinessBalance]
-    );
+    const result = await client.query(query, [
+      bill_id,
+      customerPhone,
+      tip,
+      cardId,
+      locationName,
+    ]);
 
     await client.query("COMMIT");
-    res.sendStatus(200);
+
+    const newBalance = result.rows[0].business_balance;
+    res.status(200).send(`Payment successful. New balance: ${newBalance}`);
   } catch (err) {
     await client.query("ROLLBACK");
     if (err.code === "40001") {
@@ -797,9 +789,29 @@ app.delete("/location", async (req, res) => {
   }
 });
 
+app.get("/overallview", async (req, res) => {
+  try {
+    // Query to calculate total bills, total business balance, and number of locations
+    const result = await pool.query(`
+      WITH total_balance AS (
+        SELECT 
+          COALESCE(MAX(business_balance) - 5000.00, 0) AS business_balance
+        FROM transaction
+      )
+      SELECT 
+        (SELECT COUNT(*) FROM bill) AS num_bills,
+        tb.business_balance,
+        (SELECT COUNT(*) FROM location) AS num_locations
+      FROM total_balance tb;
+    `);
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("Error fetching overall view:", err.message);
+    res.sendStatus(500);
+  }
+});
+
 app.listen(3000, () => {
   console.log("Server is running on port 3000 - localhost:3000 ");
 });
-
-
-

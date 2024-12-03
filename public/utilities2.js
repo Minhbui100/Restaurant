@@ -77,9 +77,8 @@ async function payment(orderDetails, simulation) {
     tip,
     locationName,
   } = orderDetails;
+
   try {
-    console.log("payment run");
-    console.log(customerPhone, locationName, tip, cardId);
     const response = await fetch(`http://localhost:3000/bill/${orderId}`, {
       method: "PUT",
       headers: {
@@ -93,15 +92,15 @@ async function payment(orderDetails, simulation) {
       }),
     });
 
-    if (response.status === 400) {
-      const warningMessage = await response.text();
-      console.log(warningMessage);
-    } else if (response.ok) {
+    if (response.ok) {
+      const message = await response.text();
+      console.log(message);
       if (!simulation) {
-        alert(`Order placed by ${customerName} at ${locationName}.`);
+        alert(`Payment completed by ${customerName}. ${message}`);
       }
     } else {
-      console.error("An error occurred:", response.statusText);
+      const errorMessage = await response.text();
+      console.error(`Error (${response.status}): ${errorMessage}`);
     }
   } catch (error) {
     console.error("Fetch error:", error);
@@ -110,7 +109,6 @@ async function payment(orderDetails, simulation) {
 
 async function addCard(id, name, date, spend) {
   try {
-    console.log(id);
     const response = await fetch("http://localhost:3000/cards", {
       method: "POST",
       headers: {
@@ -130,10 +128,6 @@ async function addCard(id, name, date, spend) {
       alert(warningMessage); // Alert the error message
     } else if (response.ok) {
       const result = await response.json();
-      console.log(
-        "Card added or updated successfully. New balance:",
-        result.newBalance
-      );
     } else {
       const errorMessage = await response.text();
       alert(`Error: ${errorMessage}`); // Alert other error messages
@@ -163,8 +157,6 @@ async function getMenuItems() {
       image: item.image,
       status: item.status,
     }));
-
-    console.log(menuItems); // Display the menu items in the console (for testing)
 
     return menuItems; // Return the menu items array
   } catch (err) {

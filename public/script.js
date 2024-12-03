@@ -1,7 +1,6 @@
 import * as utilities2 from "./utilities2.js";
 
 const menuItems = await utilities2.getMenuItems();
-console.log(menuItems);
 // Cart data structure
 let cart = [];
 const checkoutBtn = document.getElementById("checkout-btn");
@@ -146,7 +145,6 @@ document.querySelector("#menu-table").addEventListener("click", (e) => {
     } else {
       cart[cartItemIndex].quantity++;
     }
-    console.log(cart);
     renderCart();
   }
 });
@@ -195,7 +193,6 @@ exitCheckoutBtn.addEventListener("click", () => {
 
 const checkout = async (orderDetails, cartItems, simulation) => {
   const orderId = await utilities2.addOrders(cartItems);
-  console.log("hiii");
   let {
     customerName,
     customerPhone,
@@ -332,7 +329,6 @@ const generateRandomTip = () => {
 const generateRandomCart = (menu) => {
   const cartRandom = [];
   const availableItems = menu.filter((item) => item.status === "Available");
-  console.log(availableItems);
   // Determine the number of items in the cart (1 to 3 items randomly)
   const numItems = Math.floor(Math.random() * 3) + 1;
 
@@ -365,17 +361,9 @@ const simulateCustomerOrders = async () => {
     const cardId = generateRandomCreditCardNumber();
     const expireDate = generateRandomExpirationDate();
     const tip = generateRandomTip();
-    console.log(
-      customerName,
-      customerPhone,
-      locationName,
-      cardId,
-      expireDate,
-      tip
-    );
+
     // customers.push({ name: customerName, phone: customerPhone });
     const cartRandom = generateRandomCart(menuItems);
-    console.log(cartRandom);
     const orderDetails = {
       customerName,
       customerPhone,
