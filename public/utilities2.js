@@ -53,7 +53,6 @@ async function addCustomer(name, phone) {
 
     if (response.ok) {
       const responseData = await response.text();
-      console.log(responseData.message); // Log the success message
     } else if (response.status === 400) {
       const errorMessage = await response.text();
       console.warn("Validation error:", errorMessage.error);
@@ -94,7 +93,6 @@ async function payment(orderDetails, simulation) {
 
     if (response.ok) {
       const message = await response.text();
-      console.log(message);
       if (!simulation) {
         alert(`Payment completed by ${customerName}. ${message}`);
       }

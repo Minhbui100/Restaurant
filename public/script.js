@@ -98,11 +98,12 @@ function calculateTotalQuantities() {
 //   }
 // }
 
-function totalAmount() {
+function totalAmount(cart) {
   let totalAmount = 0;
   cart.forEach((cartItem, index) => {
     totalAmount += cartItem.price * cartItem.quantity;
   });
+  console.log(totalAmount);
   return totalAmount;
 }
 
@@ -208,7 +209,7 @@ const checkout = async (orderDetails, cartItems, simulation) => {
   }
   // Create an object to store all data (optional)
   orderDetails = { ...orderDetails, orderId };
-  let totalAfterTip = totalAmount() + tip;
+  let totalAfterTip = (totalAmount(cartItems) + parseFloat(tip)).toFixed(2);
   await utilities2.addCustomer(customerName, customerPhone);
 
   await utilities2.addCard(cardId, customerName, expireDate, totalAfterTip);
@@ -268,7 +269,28 @@ const generateRandomName = () => {
     "Anna",
     "Robert",
     "Sophia",
+    "Christopher",
+    "Jessica",
+    "Matthew",
+    "Ashley",
+    "Daniel",
+    "Olivia",
+    "Andrew",
+    "Mia",
+    "Joseph",
+    "Isabella",
+    "Ryan",
+    "Charlotte",
+    "William",
+    "Amelia",
+    "Alexander",
+    "Emma",
+    "Benjamin",
+    "Grace",
+    "Nicholas",
+    "Lily",
   ];
+
   const lastNames = [
     "Smith",
     "Johnson",
@@ -280,6 +302,26 @@ const generateRandomName = () => {
     "Davis",
     "Martinez",
     "Hernandez",
+    "Lopez",
+    "Gonzalez",
+    "Wilson",
+    "Anderson",
+    "Thomas",
+    "Taylor",
+    "Moore",
+    "Jackson",
+    "Martin",
+    "Lee",
+    "Perez",
+    "Clark",
+    "Lewis",
+    "Walker",
+    "Hall",
+    "Allen",
+    "Young",
+    "King",
+    "Wright",
+    "Scott",
   ];
 
   const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
@@ -361,7 +403,6 @@ const simulateCustomerOrders = async () => {
     const cardId = generateRandomCreditCardNumber();
     const expireDate = generateRandomExpirationDate();
     const tip = generateRandomTip();
-
     // customers.push({ name: customerName, phone: customerPhone });
     const cartRandom = generateRandomCart(menuItems);
     const orderDetails = {

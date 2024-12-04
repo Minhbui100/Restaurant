@@ -454,7 +454,7 @@ SELECT business_balance FROM new_transaction;
     logTransaction("COMMIT");
 
     const newBalance = result.rows[0].business_balance;
-    res.status(200).send(`Payment successful. New balance: ${newBalance}`);
+    res.status(200).send(`Payment successful.`);
   } catch (err) {
     await client.query("ROLLBACK");
     logTransaction("ROLLBACK");
