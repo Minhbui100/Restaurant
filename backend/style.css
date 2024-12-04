@@ -5,7 +5,6 @@ body {
     margin: 0;
     padding: 0;
     background: url("https://www.yosemite.com/wp-content/uploads/2023/04/Jacks-Patio-Overview_Tenaya-1000x666-1.jpg") no-repeat center center fixed;
-    /* Change URL */
     background-size: cover;
     position: relative;
 }
@@ -531,4 +530,40 @@ th,
 td {
     padding: 8px;
     text-align: left;
+}
+
+.createTable {
+    font-size: 25px;
+    padding: 20px 40px;
+    border-radius: 12px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    width: 250px;
+    text-align: center;
+}
+
+.createTable:hover {
+    background-color: #45a049;
+    /* Darker background on hover */
+}
+
+.refresh:hover {
+    background-color: #45a049;
+    /* Darker background on hover */
+}
+
+.refresh {
+    font-size: 20px;
+    padding: 15px 25px;
+    border-radius: 8px;
+    background-color: #4CAF50;
+    color: white;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    width: 250px;
+    text-align: center;
 }
