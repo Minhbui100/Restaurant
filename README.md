@@ -1,61 +1,69 @@
-DBS30
-HOW TO RUN OUR PROGRAM
+# DBS30 NATIONAL PARK RESTAURANT 
+## PART 1. HOW TO RUN OUR PROGRAM
 
-NOTE: CURRENT WORKING DIRECTORY/FOLDER WILL BE "Restaurant"
+>NOTE: CURRENT WORKING DIRECTORY/FOLDER WILL BE "Restaurant"
 
 Step 1: Install dependencies:
-npm install express pg body-parser cors fs
+`npm install express pg body-parser cors fs`
 
-Step 2: Create database named "restaurant" in your localhost by using this command
-"CREATE DATABASE restaurant;"
+Step 2: Log into your postgres instance.
 
-Step 3 : in config.json file, input your database user, password and port in this following format
+Step 3: Remove any table with the name `restaurant` by running the following command: `DROP DATABASE restaurant;`
+
+Step 4: Create a database named `restaurant` on your postgres instance, by running: `CREATE DATABASE restaurant;`
+
+Step 5: In the "Restaurant" directory, update the config.json file with your database user, password and port in the following format:
+```
 {
-"user": "",
-"password": "",
+"user": " ",
+"password": " ",
 "port":
 }
+```
 
-Step 4: In the "Restaurant" directory, run "node server.js" to run back end (server side).
-Go to localhost:3000 on Chrome. This is server side (back end)
+Step 6: Open a terminal, change directory to the "Restaurant" directory. From the "Restaurant" directory, run `node server.js` to run the back end server.
 
-Step 5: open another terminal under current working directory, run "node app.js" to run front end HTML
-Go to localhost:8000 on Chrome. This is front end (HTML,JS,CSS)
+Step 7: Go to [localhost:3000](localhost:3000) on Chrome browser. This is back office.
 
-NOTE: We mainly use localhost:8000 to work on program.
+Step 8: In the [localhost:3000](localhost:3000) on Chrome browser, click `Create Tables` (on the top of the webpage) button to add example datas to tables on your local machine.
 
-Step 6:If the tables are empty, click on "create table" button to add example datas to tables on your local machine
+10 data tables will be created:
+- Bill
+- Order
+- Transaction
+- Menu
+- Location
+- Employee
+- Schedule
+- Customer
+- Card
+- Review
 
-Step 7: In the "Add Order", enter:
-Bill number: 8 (NOTE: it's must be 8 because the previous one is 7)
-Dish's name: Jumbo Pizza
-Price: 25.99
--Quantity: 2
--Hit button "add order"
---> Order table and Bill table will be added new bill and new order respectively
-(1 Bill number can make multiple orders)
+NOTE: These tables are located at the very bottom of the localhost:3000 page under "Dashboard".
 
-Bill number: 8
-Dish's name: Coke
-Price: 2.50
--Quantity: 3
--Hit button "add order"
---> Order table a new order. In Bill table, the total and tax of bill number 8 will be added.
+Back office is where the restaurant staffs work:
+- Weekly and daily reports 
+- Edit data
+- Checking cashflow
 
-Step 8: In the "Delete Order"
-Order number: 17
---> Order number 17 will be deleted. The total and tax of bill number 8 will be reduced (or eleminated if there is no any order bill 8 exist in Order Table)
+Step 9: Open another terminal under current working directory, run `node app.js` to run front end HTML
+Open another tab on Chrome browser, go to [localhost:8000](localhost:8000). This is front end.
 
-Order number: 2
---> Warning: Can not process because the bill number 1 is already paid
+Frontend is where customers place and pay for orders.
+- Select dishes from menu by clicking `Add order`. Note: Cannot buy "Out of Stock" dishes.
+- Click `View cart` to review and edit orders.
+- Click `Proceed to Checkout` to go to the Checkout page.
+- In the Checkout page, enter your information. Click `Place Order` to place the order and end your shopping.
 
-Step 9: In the "Payment", enter:
-Bill number: 8
-Customer ID: 10
-Tip: 5.00
-Card number (search on Card Table): 0123456701234567
---> In Bill Table, customer ID, tip, and card information will be updated for bill number 8.
---> In Card Table, card 0123456701234567's balance = balance-bill.total-bill.tip-bill.tax
---> In Transaction Table, it's updated bill number 8's information. Current business balance = balance+bill.total+bill.tip+bill.tax
+Step 7: In the [localhost:3000](localhost:3000) page, click `Refetching Data` button (under the menu) to see the update of the new order.
 
-Note: if you want to pay for bill number 1, which is already paid, Warning: Can not process because the bill number 1 is already paid
+## PART 2. TESTING CONCURRENCY
+
+> Note: Users need to have completed Part 1 before going to Part 2
+
+Step 1: In the [localhost:8000](localhost:8000) page, click `Simulation 100 Bills`. The program will automatically run 100 bills concurrently. "Successful Simulation" message will pop up after about 5 seconds.
+
+Step 2: In the [localhost:3000](localhost:3000) page, click `Refetching Data` to see the update of the new 100 bills. Wait fro about 5 seconds until to the a message "Data refetched successfully!".
+
+
+
