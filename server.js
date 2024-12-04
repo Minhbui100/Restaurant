@@ -4,7 +4,10 @@ const { Pool } = require("pg");
 const path = require("path");
 const cors = require("cors");
 const config = require("./config.json");
+const { log } = require("console");
 const app = express();
+const fs = require("fs");
+
 app.use(bodyParser.json());
 app.use(cors()); // Enable CORS for cross-origin requests
 
@@ -29,8 +32,34 @@ const pool = new Pool({
     port: config.port,
 });
 
-console.log(pool);
+// Helper function to log queries
+const logQuery = (query) => {
+    const logFilePath = path.join(__dirname, "queries.log");
+    const logEntry = `${query}\n`;
 
+    // Append the query to the log file
+    fs.appendFile(logFilePath, logEntry, (err) => {
+        if (err) {
+            console.error("Error logging query:", err);
+        }
+    });
+};
+
+// Helper function to log transaction details to a file
+const logTransaction = (sql) => {
+    const logFilePath = path.join(__dirname, "transactions.log");
+    let logEntry = `${sql}\n`;
+    if (sql === "COMMIT") {
+        logEntry += "\n";
+    }
+
+    // Append the transaction details to the log file
+    fs.appendFile(logFilePath, logEntry, (err) => {
+        if (err) {
+            console.error("Error logging transaction:", err);
+        }
+    });
+};
 app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "backendGUI")); // Serve backend.html for root URL
 });
@@ -38,7 +67,9 @@ app.get("/", (req, res) => {
 // Fetch data from PostgreSQL
 app.get("/bill", async(req, res) => {
     try {
-        const result = await pool.query(`select * from bill order by bill_id;`);
+        const query = `select * from bill order by bill_id;`;
+        logQuery(query);
+        const result = await pool.query(query);
         res.json(result.rows);
     } catch (err) {
         console.error(err.message);
@@ -48,21 +79,9 @@ app.get("/bill", async(req, res) => {
 
 app.get("/orders", async(req, res) => {
     try {
-        await pool.query(`
-            WITH numbered_order AS (
-                SELECT
-                    c.*,
-                    ROW_NUMBER() OVER (ORDER BY c.id) AS new_id
-                FROM
-                    orders c
-            )
-            UPDATE orders
-            SET id = new_id
-            FROM numbered_order
-            WHERE orders.id = numbered_order.id;
-        `);
-
-        const result = await pool.query(`select * from orders;`);
+        const query = `select * from orders;`;
+        logQuery(query);
+        const result = await pool.query(query);
         res.json(result.rows);
     } catch (err) {
         console.error(err.message);
@@ -72,7 +91,9 @@ app.get("/orders", async(req, res) => {
 
 app.get("/cards", async(req, res) => {
     try {
-        const result = await pool.query("SELECT * FROM cards order by name;");
+        const query = "SELECT * FROM cards order by name;";
+        logQuery(query);
+        const result = await pool.query(query);
         res.json(result.rows);
     } catch (err) {
         console.error(err.message);
@@ -82,7 +103,9 @@ app.get("/cards", async(req, res) => {
 
 app.get("/customers", async(req, res) => {
     try {
-        const result = await pool.query("SELECT * FROM customers order by name;");
+        const query = "SELECT * FROM customers order by name;";
+        logQuery(query);
+        const result = await pool.query(query);
         res.json(result.rows);
     } catch (err) {
         console.error(err.message);
@@ -92,7 +115,9 @@ app.get("/customers", async(req, res) => {
 
 app.get("/transaction", async(req, res) => {
     try {
-        const result = await pool.query("SELECT * FROM transaction;");
+        const query = "SELECT * FROM transaction;";
+        logQuery(query);
+        const result = await pool.query(query);
         res.json(result.rows);
     } catch (err) {
         console.error(err.message);
@@ -102,7 +127,9 @@ app.get("/transaction", async(req, res) => {
 
 app.get("/location", async(req, res) => {
     try {
-        const result = await pool.query(`select * from location order by name;`);
+        const query = `select * from location order by name;`;
+        logQuery(query);
+        const result = await pool.query(query);
         res.json(result.rows);
     } catch (err) {
         console.error(err.message);
@@ -112,7 +139,44 @@ app.get("/location", async(req, res) => {
 
 app.get("/menu", async(req, res) => {
     try {
-        const result = await pool.query(`select * from menu order by name;`);
+        const query = `select * from menu order by name;`;
+        logQuery(query);
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.sendStatus(500);
+    }
+});
+
+//Minh
+app.get("/employee", async(req, res) => {
+    try {
+        const query = `select * from employee order by location_name, name;`;
+        logQuery(query);
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.sendStatus(500);
+    }
+});
+app.get("/schedule", async(req, res) => {
+    try {
+        const query = `select * from schedule order by ssn;`;
+        logQuery(query);
+        const result = await pool.query(query);
+        res.json(result.rows);
+    } catch (err) {
+        console.error(err.message);
+        res.sendStatus(500);
+    }
+});
+app.get("/review", async(req, res) => {
+    try {
+        const query = `select * from review order by reviewdate, location_name;`;
+        logQuery(query);
+        const result = await pool.query(query);
         res.json(result.rows);
     } catch (err) {
         console.error(err.message);
@@ -122,117 +186,203 @@ app.get("/menu", async(req, res) => {
 
 app.post("/createtable", async(req, res) => {
     const sql = req.body.sql;
-    try {
-        const result = await pool.query(sql);
-        res.status(200).json({ success: true, result: result });
-    } catch (error) {
-        res.status(500).json({ success: false, error: error.message });
-        console.log("here1", error.message);
-    }
-});
-
-//add order
-app.post("/orders", async(req, res) => {
-    const { orders } = req.body;
-
-    if (!orders || orders.length === 0) {
-        return res.status(400).send("Please select at least one dish with a valid quantity");
-    }
 
     const client = await pool.connect();
     try {
         await client.query("BEGIN");
 
-        // Insert a new bill and get its ID
-        const billResult = await client.query(
-            "INSERT INTO bill (bill_id) VALUES ((SELECT COALESCE(MAX(bill_id), 0) + 1 FROM bill)) RETURNING bill_id;"
-        );
-        const billId = billResult.rows[0].bill_id;
+        // Log the start of the transaction
+        logTransaction("BEGIN");
 
-        // Check if all dishes are available before inserting orders
-        for (const { name }
-            of orders) {
-            const statusResult = await client.query(
-                "SELECT status FROM menu WHERE name = $1", [name]
-            );
-
-            if (statusResult.rows.length === 0) {
-                // Dish not found in the menu
-                return res.status(400).send(`The dish "${name}" does not exist in the menu.`);
-            }
-
-            if (statusResult.rows[0].status === 'Out of Stock') {
-                // Dish is not available
-                return res.status(400).send(`The dish "${name}" is out of stock.`);
-            }
-        }
-
-        // Insert all orders
-        const orderValues = orders.map(({ name, quantity }) => `('${billId}', '${name}', (SELECT price FROM menu WHERE name = '${name}'), ${quantity})`);
-        const insertOrdersQuery = `
-            INSERT INTO orders (bill_id, name, price, quantity)
-            VALUES ${orderValues.join(", ")}
-        `;
-        await client.query(insertOrdersQuery);
-
-        // Update total and tax for the new bill
-        await client.query(`
-            UPDATE bill
-            SET total = (SELECT COALESCE(SUM(price * quantity), 0) FROM orders WHERE bill_id = $1),
-                tax = total * 0.0625
-            WHERE bill_id = $1;
-        `, [billId]);
-
-        await client.query("UPDATE bill SET tax = total * 0.0625;");
+        // Execute the SQL statement
+        const result = await client.query(sql);
+        logTransaction(sql);
 
         await client.query("COMMIT");
-        res.status(201).send("Orders successfully added.");
+
+        // Log the successful completion of the transaction
+        logTransaction("COMMIT");
+
+        res.status(200).json({ success: true, result });
     } catch (error) {
         await client.query("ROLLBACK");
-        console.error("Error processing orders:", error);
-        res.status(500).send("An error occurred while processing your request.");
+
+        // Log the rollback in case of error
+        logTransaction("ROLLBACK");
+
+        console.error("Error creating table:", error.message);
+        res.status(500).json({ success: false, error: error.message });
     } finally {
         client.release();
     }
 });
 
-//delete order
+app.post("/orders", async(req, res) => {
+    const { orders } = req.body;
+
+    if (!orders || orders.length === 0) {
+        return res
+            .status(400)
+            .send("Please select at least one dish with a valid quantity.");
+    }
+
+    const client = await pool.connect();
+    try {
+        await client.query("BEGIN");
+        logTransaction("BEGIN");
+        let query = "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE";
+        await client.query(query);
+        logTransaction(query);
+        // Insert a new bill and get its ID
+        query =
+            "INSERT INTO bill (bill_id) VALUES ((SELECT COALESCE(MAX(bill_id), 0) + 1 FROM bill)) RETURNING bill_id;";
+        const billResult = await client.query(query);
+        const billId = billResult.rows[0].bill_id;
+        logTransaction(query);
+
+        // Check availability and insert orders in a single query
+        const orderValues = orders
+            .map(({ name, quantity }) => `('${name}', ${quantity})`)
+            .join(", ");
+        const insertOrdersQuery = `
+WITH valid_dishes AS (
+  SELECT name, price, status
+  FROM menu
+  WHERE name IN (${orders.map(({ name }) => `
+        '${name}'
+        `).join(", ")})
+),
+checked_dishes AS (
+  SELECT name, price
+  FROM valid_dishes
+  WHERE status = 'Available'
+)
+INSERT INTO orders (bill_id, name, price, quantity)
+SELECT $1, checked_dishes.name, checked_dishes.price, orders_data.quantity
+FROM checked_dishes
+JOIN (VALUES ${orderValues}) AS orders_data(name, quantity)
+ON checked_dishes.name = orders_data.name;
+    `;
+        await client.query(insertOrdersQuery, [billId]);
+        logTransaction(insertOrdersQuery);
+
+        // Update the bill total and tax
+        const updateBillQuery = `
+UPDATE bill
+SET total = (
+    SELECT COALESCE(SUM(price * quantity), 0)
+    FROM orders
+    WHERE bill_id = $1
+),
+tax = total * 0.0625
+WHERE bill_id = $1;
+    `;
+        await client.query(updateBillQuery, [billId]);
+        logTransaction(updateBillQuery);
+
+        await client.query("COMMIT");
+        logTransaction("COMMIT");
+
+        res.status(201).send(`${billId}`);
+    } catch (error) {
+        await client.query("ROLLBACK");
+        logTransaction("ROLLBACK");
+
+        if (error.code === "40001") {
+            // Serialization failure, recommend retry
+            res
+                .status(500)
+                .send("Transaction failed due to high contention. Please try again.");
+        } else {
+            console.error("Error processing orders:", error);
+            res.status(500).send("An error occurred while processing your request.");
+        }
+    } finally {
+        client.release();
+    }
+});
+
+// Delete order
 app.delete("/orders/:id", async(req, res) => {
     const { id } = req.params;
+
+    const client = await pool.connect();
     try {
-        const result = await pool.query(
-            "SELECT bill_id FROM Orders WHERE id = $1", [id]
-        );
+        await client.query("BEGIN");
+        logTransaction("BEGIN");
+
+        let query = "SET TRANSACTION ISOLATION LEVEL SERIALIZABLE";
+        await client.query(query);
+        logTransaction(query);
+
+        // Step 1: Check if the order exists and retrieve its bill_id
+        query = "SELECT bill_id FROM orders WHERE id = $1 FOR UPDATE";
+        logTransaction(query);
+        const result = await client.query(query, [id]);
+
         if (result.rowCount === 0) {
+            await client.query("ROLLBACK");
+            logTransaction("ROLLBACK");
             return res.status(404).json({ error: "Order not found" });
         }
-        const orderId = result.rows[0].bill_id;
 
-        const result1 = await pool.query(
-            "SELECT paid FROM bill WHERE bill_id = $1", [orderId]
-        );
+        const billId = result.rows[0].bill_id;
+
+        // Step 2: Check if the bill is already paid
+        query = "SELECT paid FROM bill WHERE bill_id = $1 FOR UPDATE";
+        logTransaction(query);
+        const result1 = await client.query(query, [billId]);
+
         if (result1.rows.length > 0 && result1.rows[0].paid === true) {
+            await client.query("ROLLBACK");
+            logTransaction("ROLLBACK");
             return res.status(400).send("Warning: The bill ID is already paid");
         }
 
-        await pool.query("DELETE FROM orders WHERE id = $1", [id]);
-        await pool.query(
-            "UPDATE Bill SET total = (SELECT COALESCE(SUM(price * quantity), 0) FROM Orders WHERE Orders.bill_id = Bill.bill_id);"
-        );
-        await pool.query(`
-                                UPDATE Bill SET tax = total * 0.0825 `);
-        // Step 4: Check if there are any remaining orders with this order_id
-        const orderCheck = await pool.query(
-            "SELECT 1 FROM Orders WHERE bill_id = $1", [orderId]
-        );
+        // Step 3: Delete the order
+        query = "DELETE FROM orders WHERE id = $1";
+        logTransaction(query);
+        await client.query(query, [id]);
+
+        // Step 4: Update the total and tax in the `bill` table
+        query = `
+      UPDATE bill
+      SET total = (SELECT COALESCE(SUM(price * quantity), 0) FROM orders WHERE bill_id = $1),
+          tax = total * 0.0825
+      WHERE bill_id = $1
+    `;
+        logTransaction(query);
+        await client.query(query, [billId]);
+
+        // Step 5: Check if there are any remaining orders for the bill
+        query = "SELECT 1 FROM orders WHERE bill_id = $1";
+        logTransaction(query);
+        const orderCheck = await client.query(query, [billId]);
+
+        // Step 6: If no orders remain, delete the bill
         if (orderCheck.rowCount === 0) {
-            // Step 5: Delete the Bill record if no more orders exist for this order_id
-            await pool.query("DELETE FROM Bill WHERE bill_id = $1", [orderId]);
+            query = "DELETE FROM bill WHERE bill_id = $1";
+            logTransaction(query);
+            await client.query(query, [billId]);
         }
+
+        await client.query("COMMIT");
+        logTransaction("COMMIT");
         res.sendStatus(200);
     } catch (err) {
-        console.error(err.message);
-        res.sendStatus(500);
+        await client.query("ROLLBACK");
+        logTransaction("ROLLBACK");
+
+        if (err.code === "40001") {
+            // Serialization failure
+            console.warn("Serialization failure, recommend retry:", err.message);
+            res.status(503).send("Temporary failure, please retry.");
+        } else {
+            console.error("Error deleting order:", err.message);
+            res.status(500).send("An error occurred while deleting the order.");
+        }
+    } finally {
+        client.release();
     }
 });
 
@@ -240,229 +390,484 @@ app.delete("/orders/:id", async(req, res) => {
 app.put("/bill/:bill_id", async(req, res) => {
     const { bill_id } = req.params;
     const { customerPhone, locationName, tip, cardId } = req.body;
-    console.log(locationName)
+
+    const client = await pool.connect();
     try {
-        // Retrieve the current bill details including total, tip, and tax
-        const billResult = await pool.query(
-            "SELECT total, tip, tax, paid FROM bill WHERE bill_id = $1", [bill_id]
-        );
+        await client.query("BEGIN");
+        logTransaction("BEGIN");
 
-        // If the bill does not exist, send an error
-        if (billResult.rowCount === 0) {
-            return res.status(404).send("Bill not found");
-        }
+        await client.query("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE");
+        logTransaction("SET TRANSACTION ISOLATION LEVEL SERIALIZABLE");
 
-        const billData = billResult.rows[0];
+        const query = `
+WITH bill_data AS (
+  SELECT 
+    total, tax, paid
+  FROM bill
+  WHERE bill_id = $1
+  FOR UPDATE
+),
+updated_bill AS (
+  UPDATE bill
+  SET 
+    cust_phone = $2,
+    tip = $3,
+    card_id = $4,
+    paid = TRUE,
+    location_name = $5,
+    tax=total*0.065
+  WHERE bill_id = $1
+  RETURNING (total + $3 + total*0.065) AS total_amount
+),
 
-        // Check if the bill is already paid
-        if (billData.paid) {
-            return res.status(400).send("Warning: The bill ID is already paid");
-        }
+increment_points AS (
+  UPDATE customers
+  SET membership_point = membership_point + 1
+  WHERE phone = $2
+),
+current_balance AS (
+  SELECT 
+    COALESCE(
+      (SELECT business_balance FROM transaction ORDER BY tran_id DESC LIMIT 1), 
+      5000.0
+    ) AS current_balance
+),
+new_transaction AS (
+  INSERT INTO transaction (total, from_bankacct, business_balance)
+  SELECT 
+    ub.total_amount, 
+    $4, 
+    cb.current_balance + ub.total_amount
+  FROM updated_bill ub, current_balance cb
+  RETURNING business_balance
+)
+SELECT business_balance FROM new_transaction;
+    `;
 
-        // Update the bill to mark it as paid
-        await pool.query(
-            "UPDATE bill SET cust_phone = $1, tip=$2, card_id = $3, paid = TRUE, location_name=$4 WHERE bill_id = $5", [customerPhone, tip, cardId, locationName, bill_id]
-        );
+        logTransaction(query); // Log the entire query
 
-        // Calculate the total amount to deduct from the card balance
-        const formattedTotalAmount =
-            parseFloat(billData.total) + parseFloat(tip) + parseFloat(billData.tax);
-        const totalAmount = parseFloat(formattedTotalAmount.toFixed(2));
+        const result = await client.query(query, [
+            bill_id,
+            customerPhone,
+            tip,
+            cardId,
+            locationName,
+        ]);
 
-        // Update the customer's membership points
-        await pool.query(
-            "UPDATE customers SET membership_point = membership_point + 1 WHERE phone = $1", [customerPhone]
-        );
+        await client.query("COMMIT");
+        logTransaction("COMMIT");
 
-        // Deduct the total amount from the card balance
-        if (cardId != "cash")
-            await pool.query(
-                "UPDATE cards SET balance = balance - $1 WHERE id = $2", [totalAmount, cardId]
-            );
-
-        const businessBalanceResult = await pool.query(
-            "SELECT business_balance FROM transaction ORDER BY tran_id DESC LIMIT 1"
-        );
-
-        const currentBusinessBalance =
-            businessBalanceResult.rowCount > 0 ?
-            businessBalanceResult.rows[0].business_balance :
-            5000.0; // Set to default if no transactions
-
-        // Calculate the new business balance
-        const x = parseFloat(currentBusinessBalance) + parseFloat(totalAmount);
-        const newcurrentBusinessBalance = parseFloat(x.toFixed(2));
-        console.log(currentBusinessBalance, totalAmount, newcurrentBusinessBalance);
-
-        // Insert the transaction record
-        await pool.query(
-            `
-                                INSERT INTO transaction(total, from_bankacct, business_balance) VALUES($1, $2, $3)
-                                `, [formattedTotalAmount, cardId, newcurrentBusinessBalance]
-        );
-
-        res.sendStatus(200);
+        const newBalance = result.rows[0].business_balance;
+        res.status(200).send(`Payment successful.`);
     } catch (err) {
-        console.error("Error processing the request:", err.message);
-        res.sendStatus(500);
+        await client.query("ROLLBACK");
+        logTransaction("ROLLBACK");
+
+        if (err.code === "40001") {
+            console.warn("Serialization failure, retrying:", err.message);
+            res.status(503).send("Temporary failure, please retry.");
+        } else {
+            console.error("Error processing the payment:", err.message);
+            res.status(500).send("An error occurred while processing the payment.");
+        }
+    } finally {
+        client.release();
     }
 });
 
-//add customer
+// Add customer
 app.post("/customers", async(req, res) => {
     const { name, phone } = req.body;
-    // Check if both id and name are provided
+
+    // Validate input
     if (!name || !phone) {
-        return res.status(400).send("Name and phone are required");
+        return res.status(400).send("Name and phone are required.");
     }
+
+    const client = await pool.connect();
     try {
-        const billCheck = await pool.query(
-            "SELECT 1 FROM customers WHERE phone = $1", [phone]
-        );
-        if (billCheck.rowCount === 1) {
-            return res.status(400).send("This phone number is already used.");
+        await client.query("BEGIN");
+        logTransaction("BEGIN");
+
+        // Check if the customer already exists
+        const queryCheck = "SELECT * FROM customers WHERE phone = $1 FOR UPDATE";
+        logTransaction(queryCheck);
+        const customerCheck = await client.query(queryCheck, [phone]);
+
+        if (customerCheck.rowCount > 0) {
+            await client.query("ROLLBACK");
+            logTransaction("ROLLBACK");
+
+            return res.status(200).json({
+                message: "Customer already exists.",
+                customer: customerCheck.rows[0],
+            });
         }
-        await pool.query("INSERT INTO customers (name, phone) VALUES ($1, $2)", [
-            name,
-            phone,
-        ]);
-        res.sendStatus(201); // Successfully created
+
+        // Insert the new customer
+        const queryInsert = "INSERT INTO customers (name, phone) VALUES ($1, $2)";
+        logTransaction(queryInsert);
+        await client.query(queryInsert, [name, phone]);
+
+        // Retrieve the newly inserted customer
+        const querySelect = "SELECT * FROM customers WHERE phone = $1";
+        logTransaction(querySelect);
+        const newCustomer = await client.query(querySelect, [phone]);
+
+        await client.query("COMMIT");
+        logTransaction("COMMIT");
+
+        res.status(201).json({
+            message: "Customer added successfully.",
+            customer: newCustomer.rows[0],
+        });
     } catch (err) {
-        console.error(err.message);
-        res.sendStatus(500);
+        await client.query("ROLLBACK");
+        logTransaction("ROLLBACK");
+
+        // Handle unique constraint violation
+        if (err.code === "23505") {
+            return res.status(409).json({
+                message: "A customer with this phone number already exists.",
+            });
+        }
+
+        console.error("Error handling customers:", err.message);
+        res.sendStatus(500); // Internal server error
+    } finally {
+        client.release();
     }
 });
 
 //delete customer
+// Delete customer
 app.delete("/customers/:phone", async(req, res) => {
     const { phone } = req.params;
+
+    const client = await pool.connect();
     try {
-        const result = await pool.query(
-            "SELECT phone FROM customers WHERE phone = $1", [phone]
-        );
+        await client.query("BEGIN");
+        logTransaction("BEGIN");
+
+        // Step 1: Check if the customer exists and lock the row
+        const queryCheck =
+            "SELECT phone FROM customers WHERE phone = $1 FOR UPDATE";
+        logTransaction(queryCheck);
+        const result = await client.query(queryCheck, [phone]);
+
         if (result.rowCount === 0) {
-            return res.sendStatus(400);
+            await client.query("ROLLBACK");
+            logTransaction("ROLLBACK");
+            return res.status(404).json({ error: "Customer not found" });
         }
-        await pool.query("DELETE FROM customers WHERE phone = $1", [phone]);
-        res.sendStatus(201); // Successfully
+
+        // Step 2: Delete the customer
+        const queryDelete = "DELETE FROM customers WHERE phone = $1";
+        logTransaction(queryDelete);
+        await client.query(queryDelete, [phone]);
+
+        await client.query("COMMIT");
+        logTransaction("COMMIT");
+        res.sendStatus(200); // Successfully deleted
     } catch (err) {
-        console.error(err.message);
-        res.sendStatus(500);
+        await client.query("ROLLBACK");
+        logTransaction("ROLLBACK");
+
+        console.error("Error deleting customer:", err.message);
+        res
+            .status(500)
+            .json({ error: "An error occurred while deleting the customer." });
+    } finally {
+        client.release();
     }
 });
 
 //add menu
 app.post("/menu", async(req, res) => {
     const { name, price, image } = req.body;
-    // Check if both id and name are provided
+
+    // Validate input
     if (!name || !price) {
         return res.status(400).send("Name, price, and image URL are required");
     }
+
+    const client = await pool.connect();
     try {
-        const billCheck = await pool.query(
-            "SELECT 1 FROM menu WHERE name = $1", [name]
-        );
-        if (billCheck.rowCount === 1) {
-            return res.status(400).send("This dish name is already used.");
+        await client.query("BEGIN");
+        logTransaction("BEGIN");
+
+        // Check if the menu item already exists
+        const queryCheck = "SELECT 1 FROM menu WHERE name = $1 FOR UPDATE";
+        logTransaction(queryCheck);
+        const menuCheck = await client.query(queryCheck, [name]);
+
+        if (menuCheck.rowCount > 0) {
+            await client.query("ROLLBACK");
+            logTransaction("ROLLBACK");
+
+            return res
+                .status(409)
+                .json({ message: "This dish name is already used." });
         }
-        await pool.query("INSERT INTO menu (name, price, image, status) VALUES ($1, $2, $3, 'Available')", [
-            name,
-            price,
-            image
-        ]);
+
+        // Insert the new menu item
+        const queryInsert =
+            "INSERT INTO menu (name, price, image, status) VALUES ($1, $2, $3, 'Available')";
+        logTransaction(queryInsert);
+        await client.query(queryInsert, [name, price, image]);
+
+        await client.query("COMMIT");
+        logTransaction("COMMIT");
+
         res.sendStatus(201); // Successfully created
     } catch (err) {
-        console.error(err.message);
-        res.sendStatus(500);
+        await client.query("ROLLBACK");
+        logTransaction("ROLLBACK");
+
+        // Handle unique constraint violation
+        if (err.code === "23505") {
+            return res.status(409).json({
+                message: "This dish name is already used.",
+            });
+        }
+
+        console.error("Error adding menu item:", err.message);
+        res.status(500).send("An error occurred while adding the menu item.");
+    } finally {
+        client.release();
     }
 });
 
 //delete menu
 app.delete("/menu/:name", async(req, res) => {
     const { name } = req.params;
+
+    const client = await pool.connect();
     try {
-        const result = await pool.query(
-            "SELECT name FROM menu WHERE name = $1", [name]
-        );
+        await client.query("BEGIN");
+        logTransaction("BEGIN");
+
+        // Step 1: Check if the menu item exists and lock the row
+        const queryCheck = "SELECT name FROM menu WHERE name = $1 FOR UPDATE";
+        logTransaction(queryCheck);
+        const result = await client.query(queryCheck, [name]);
+
         if (result.rowCount === 0) {
-            return res.sendStatus(400);
+            await client.query("ROLLBACK");
+            logTransaction("ROLLBACK");
+
+            return res.status(404).json({ error: "Menu item not found" });
         }
-        await pool.query("DELETE FROM menu WHERE name = $1", [name]);
-        res.sendStatus(201); // Successfully
+
+        // Step 2: Delete the menu item
+        const queryDelete = "DELETE FROM menu WHERE name = $1";
+        logTransaction(queryDelete);
+        await client.query(queryDelete, [name]);
+
+        await client.query("COMMIT");
+        logTransaction("COMMIT");
+
+        res.sendStatus(200); // Successfully deleted
     } catch (err) {
-        console.error(err.message);
-        res.sendStatus(500);
+        await client.query("ROLLBACK");
+        logTransaction("ROLLBACK");
+
+        console.error("Error deleting menu item:", err.message);
+        res
+            .status(500)
+            .json({ error: "An error occurred while deleting the menu item." });
+    } finally {
+        client.release();
     }
 });
 
-//change status in menu
+// Change menu status
 app.put("/menu/status/:name", async(req, res) => {
     const { name } = req.params;
     const { status } = req.body;
 
+    const client = await pool.connect();
     try {
-        // Check if the menu item exists
-        const menuItem = await pool.query("SELECT status FROM menu WHERE name = $1", [name]);
+        await client.query("BEGIN");
+        logTransaction("BEGIN");
+
+        // Step 1: Check if the menu item exists
+        const queryCheck = "SELECT status FROM menu WHERE name = $1";
+        logTransaction(queryCheck);
+        const menuItem = await client.query(queryCheck, [name]);
         if (menuItem.rowCount === 0) {
+            await client.query("ROLLBACK");
+            logTransaction("ROLLBACK");
             return res.status(400).send("Menu item not found.");
         }
 
+        // Step 2: Update the menu item status
+        const queryUpdate = "UPDATE menu SET status = $1 WHERE name = $2";
+        logTransaction(queryUpdate);
+        await client.query(queryUpdate, [status, name]);
 
-        await pool.query("UPDATE menu SET status = $1 WHERE name = $2", [status, name]);
+        await client.query("COMMIT");
+        logTransaction("COMMIT");
+
         res.sendStatus(200); // Successfully updated
     } catch (err) {
-        console.error(err.message);
-        res.sendStatus(500); // Internal server error
+        await client.query("ROLLBACK");
+        logTransaction("ROLLBACK");
+
+        console.error("Error updating menu status:", err.message);
+        res.status(500).send("An error occurred while updating the menu status.");
+    } finally {
+        client.release();
     }
 });
 
 //add card
 app.post("/cards", async(req, res) => {
-    const { id, name, date, balance } = req.body;
-    // Check if both id and name are provided
-    if (!name || !date || !id || !balance) {
-        return res.status(400).send("ID, name, ex-date, and current balance are required");
+    const { id, name, ex_date, spend } = req.body;
+
+    // Validate input
+    if (!id || !name || !ex_date || !spend) {
+        return res
+            .status(400)
+            .json({ success: false, message: "All fields are required." });
     }
+
+    const client = await pool.connect();
     try {
-        const billCheck = await pool.query(
-            "SELECT 1 FROM cards WHERE id = $1", [id]
-        );
-        if (billCheck.rowCount === 1) {
-            return res.status(400).send("This card number already exists.");
+        await client.query("BEGIN");
+        logTransaction("BEGIN");
+
+        // Step 1: Check if the card exists and lock the row
+        const queryCheck = "SELECT * FROM cards WHERE id = $1 FOR UPDATE";
+        logTransaction(queryCheck);
+        const existingCardResult = await client.query(queryCheck, [id]);
+
+        let newBalance;
+
+        if (id.startsWith("cash")) {
+            if (existingCardResult.rowCount === 0) {
+                // If card doesn't exist and starts with "cash", add it with balance "0"
+                const queryInsert =
+                    "INSERT INTO cards (id, name, ex_date, balance) VALUES ($1, $2, $3, $4)";
+                logTransaction(queryInsert);
+                await client.query(queryInsert, [id, name, ex_date, 0]);
+                newBalance = 0;
+                res.status(200).json({
+                    success: true,
+                    message: "Card with 'cash' ID added with balance '0'.",
+                });
+            } else {
+                // If card exists and starts with "cash", don't modify balance
+                newBalance = existingCardResult.rows[0].balance;
+                res.status(200).json({
+                    success: true,
+                    message: "Card with 'cash' ID already exists. Balance not updated.",
+                });
+            }
+        } else {
+            if (existingCardResult.rowCount > 0) {
+                // If card exists, subtract the spend from the current balance
+                const currentBalance = existingCardResult.rows[0].balance;
+                newBalance = currentBalance - spend;
+
+                // Ensure balance does not go below 0
+                if (newBalance < 0) {
+                    await client.query("ROLLBACK");
+                    logTransaction("ROLLBACK");
+                    return res.status(400).json({
+                        success: false,
+                        message: "Insufficient balance to complete the transaction.",
+                    });
+                }
+
+                // Update the balance for the existing card
+                const queryUpdate = "UPDATE cards SET balance = $1 WHERE id = $2";
+                logTransaction(queryUpdate);
+                await client.query(queryUpdate, [newBalance, id]);
+            } else {
+                // If card doesn't exist, create a new card with a default balance of 1000
+                newBalance = 1000 - spend;
+                const queryInsertNew =
+                    "INSERT INTO cards (id, name, ex_date, balance) VALUES ($1, $2, $3, $4)";
+                logTransaction(queryInsertNew);
+                await client.query(queryInsertNew, [id, name, ex_date, newBalance]);
+            }
+            res.status(200).json({ success: true, newBalance });
         }
-        await pool.query("INSERT INTO cards (id, name, ex_date, balance) VALUES ($1, $2, $3, $4)", [
-            id,
-            name,
-            date,
-            balance
-        ]);
-        res.sendStatus(201); // Successfully created
-    } catch (err) {
-        console.error(err.message);
-        res.sendStatus(500);
+
+        await client.query("COMMIT");
+        logTransaction("COMMIT");
+    } catch (error) {
+        await client.query("ROLLBACK");
+        logTransaction("ROLLBACK");
+
+        console.error("Error processing card transaction:", error.message);
+        res.status(500).json({ success: false, error: error.message });
+    } finally {
+        client.release();
     }
 });
 
 //delete all customer
 app.delete("/customers", async(req, res) => {
+    const client = await pool.connect();
     try {
-        const result = await pool.query("delete from customers;");
+        await client.query("BEGIN");
+        logTransaction("BEGIN");
 
-        res.sendStatus(200); // Send OK response
+        // Step 1: Lock all customers (if necessary)
+        const lockQuery = "SELECT 1 FROM customers FOR UPDATE";
+        logTransaction(lockQuery);
+        await client.query(lockQuery);
+
+        // Step 2: Delete all customers
+        const deleteQuery = "DELETE FROM customers";
+        logTransaction(deleteQuery);
+        await client.query(deleteQuery);
+
+        await client.query("COMMIT");
+        logTransaction("COMMIT");
+        res.sendStatus(200); // Successfully deleted
     } catch (err) {
+        await client.query("ROLLBACK");
+        logTransaction("ROLLBACK");
+
         console.error("Error deleting rows from customer table:", err.message);
         res.status(500).json({ error: err.message }); // Internal server error
+    } finally {
+        client.release();
     }
 });
 
 //delete all bill
 app.delete("/bill", async(req, res) => {
+    const client = await pool.connect();
     try {
-        await pool.query("delete from bill;");
-        res.sendStatus(200); // Send OK response
+        await client.query("BEGIN");
+        logTransaction("BEGIN");
+
+        // Step 1: Lock the rows in the bill table (if needed)
+        const lockQuery = "SELECT 1 FROM bill FOR UPDATE";
+        logTransaction(lockQuery);
+        await client.query(lockQuery);
+
+        // Step 2: Delete all records from the bill table
+        const deleteQuery = "DELETE FROM bill";
+        logTransaction(deleteQuery);
+        await client.query(deleteQuery);
+
+        // Step 3: Commit the transaction
+        await client.query("COMMIT");
+        logTransaction("COMMIT");
+        res.sendStatus(200); // Successfully deleted
     } catch (err) {
+        await client.query("ROLLBACK");
+        logTransaction("ROLLBACK");
+
         console.error("Error deleting rows from bill table:", err.message);
         res.status(500).json({ error: err.message }); // Return detailed error
+    } finally {
+        client.release();
     }
 });
 
@@ -507,6 +912,30 @@ app.delete("/location", async(req, res) => {
     } catch (err) {
         console.error("Error deleting rows from location table:", err.message);
         res.status(500).json({ error: err.message }); // Return detailed error
+    }
+});
+
+app.get("/overallview", async(req, res) => {
+    try {
+        // Query to calculate total bills, total business balance, and number of locations
+        let query = `
+WITH total_balance AS (
+  SELECT 
+    COALESCE(MAX(business_balance) - 5000.00, 0) AS business_balance
+  FROM transaction
+)
+SELECT 
+  (SELECT COUNT(*) FROM bill) AS num_bills,
+  tb.business_balance,
+  (SELECT COUNT(*) FROM location) AS num_locations
+FROM total_balance tb;
+`;
+        const result = await pool.query(query);
+        logQuery(query);
+        res.json(result.rows[0]);
+    } catch (err) {
+        console.error("Error fetching overall view:", err.message);
+        res.sendStatus(500);
     }
 });
 
