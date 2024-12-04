@@ -33,6 +33,7 @@ const deleteAllTransactionsBtn = document.getElementById(
 const deleteAllLocationBtn = document.getElementById("deleteAllLocation");
 
 const overallTable = document.getElementById("business_overview_table");
+const refreshBtn = document.querySelector(".refresh");
 
 const billTableSql = `
 CREATE TABLE IF NOT EXISTS bill (
@@ -45,6 +46,9 @@ CREATE TABLE IF NOT EXISTS bill (
     card_id VARCHAR(16) REFERENCES cards(id),  -- Added foreign key to cards
     paid BOOLEAN DEFAULT false
 );
+CREATE INDEX idx_bill_cust_phone ON bill(cust_phone);
+CREATE INDEX idx_bill_location_name ON bill(location_name);
+CREATE INDEX idx_bill_card_id ON bill(card_id);
 
 INSERT INTO bill (bill_id, cust_phone, location_name, total, tip, tax, card_id, paid) VALUES
 (101, '8901234567', 'Big Bend Fast Food', 35.96, 3.00, 2.25, '8901234589012345', TRUE),
@@ -65,6 +69,10 @@ CREATE TABLE IF NOT EXISTS orders (
     quantity INTEGER NOT NULL CHECK (quantity > 0)
 );
 
+CREATE INDEX idx_orders_bill_id ON orders(bill_id);
+CREATE INDEX idx_orders_name ON orders(name);
+CREATE INDEX idx_orders_bill_id_name ON orders(bill_id, name);
+
 INSERT INTO orders (bill_id, name, price, quantity) VALUES
 (101, 'Caesar Salad', 9.99, 2),
 (101, 'Chocolate Lava Cake', 7.99, 2),
@@ -84,8 +92,8 @@ INSERT INTO orders (bill_id, name, price, quantity) VALUES
 
 const cardTableSql = `
 CREATE TABLE IF NOT EXISTS cards (
-    id VARCHAR(16) PRIMARY KEY,
-    name VARCHAR(20),
+    id VARCHAR(30) PRIMARY KEY,
+    name VARCHAR(35),
     ex_date VARCHAR(10),
     balance NUMERIC
 );
@@ -189,9 +197,18 @@ CREATE TABLE IF NOT EXISTS transaction (
     tran_id serial PRIMARY KEY, 
     total NUMERIC(10, 2),
     from_bankacct VARCHAR(16) REFERENCES cards(id),  -- Foreign key to cards
-    tdate DATE DEFAULT CURRENT_DATE,
+    tdate DATE DEFAULT '2024-12-05',
     business_balance NUMERIC(10, 2)
 );
+CREATE INDEX idx_transaction_from_bankacct ON transaction(from_bankacct);
+CREATE INDEX idx_transaction_from_bankacct_tdate ON transaction(from_bankacct, tdate);
+CREATE INDEX idx_transaction_business_balance ON transaction(business_balance);
+
+
+CREATE INDEX IF NOT EXISTS idx_transaction_from_bankacct ON transaction (from_bankacct);
+CREATE INDEX IF NOT EXISTS idx_transaction_tdate ON transaction (tdate);
+CREATE INDEX IF NOT EXISTS idx_transaction_business_balance ON transaction (business_balance);
+CREATE INDEX IF NOT EXISTS idx_transaction_from_bankacct_tdate ON transaction (from_bankacct, tdate);
 
 INSERT INTO transaction (total, from_bankacct, tdate, business_balance) VALUES
 (80.46, '1234567812345678', '2024-12-02', 5080.46),
@@ -224,6 +241,7 @@ CREATE TABLE IF NOT EXISTS customers (
     phone VARCHAR(15) primary key,
     membership_point INTEGER DEFAULT 0  -- Fixed DEFAULT syntax
 );
+CREATE INDEX idx_customers_name ON customers(name);
 
 INSERT INTO customers (name, phone, membership_point) VALUES
     ('Alice Smith', '1234567890', 10),
@@ -324,6 +342,9 @@ CREATE TABLE IF NOT EXISTS location (
     address varchar(120)
 );
 
+CREATE INDEX idx_location_address ON location(address);
+
+
 INSERT INTO location (name, address) VALUES
 ('Big Bend Fast Food', '9 Basin Rural Station Big Bend National Park, TX'),
 ('Yosemite Fast Food', '1206 Village Dr Yosemite Village, Yosemite National Park, CA'),
@@ -342,6 +363,8 @@ CREATE TABLE menu(
     image VARCHAR(700),
     status VARCHAR(20) CHECK(Status IN('Available', 'Out of Stock'))
 );
+CREATE INDEX idx_menu_status ON menu(status);
+CREATE INDEX idx_menu_status_price ON menu(status, price);
 INSERT INTO menu(Name, Price, Image, Status) VALUES
     ('Grilled Salmon', 18.99, 'https://www.cookingclassy.com/wp-content/uploads/2018/05/grilled-salmon-3.jpg', 'Available'),
     ('Spaghetti Carbonara', 14.99, 'https://bellyfull.net/wp-content/uploads/2023/02/Spaghetti-Carbonara-blog-1.jpg', 'Available'),
@@ -359,6 +382,9 @@ CREATE TABLE IF NOT EXISTS employee (
     position varchar(20),
     location_name varchar(45) REFERENCES location(name)
 );
+CREATE INDEX idx_employee_position ON employee(position);
+CREATE INDEX idx_employee_location_name ON employee(location_name);
+CREATE INDEX idx_employee_position_location_name ON employee(position, location_name);
 
 INSERT INTO employee (name, ssn, position, location_name) VALUES
     ('Alice Smith', '111-22-3333', 'Manager', 'Big Bend Fast Food'),
@@ -428,6 +454,9 @@ CREATE TABLE schedule (
     PRIMARY KEY (ssn, work_day),
     FOREIGN KEY (ssn) REFERENCES Employee(ssn)
 );
+CREATE INDEX idx_schedule_work_day ON schedule(work_day);
+CREATE INDEX idx_schedule_ssn ON schedule(ssn);
+
 
 INSERT INTO schedule (ssn, work_day) VALUES
     ('111-22-3333', 'Mon'),
@@ -539,6 +568,10 @@ CREATE TABLE review (
     rating INTEGER CHECK (rating >= 1 AND rating <= 5),
     review_text TEXT
 );
+CREATE INDEX idx_review_customer_phone ON review(customer_phone);
+CREATE INDEX idx_review_location_name ON review(location_name);
+CREATE INDEX idx_review_rating ON review(rating);
+CREATE INDEX idx_review_customer_phone_reviewdate ON review(customer_phone, reviewdate);
 
 
 INSERT INTO review (customer_phone, location_name, reviewdate, rating, review_text) VALUES
@@ -685,6 +718,7 @@ createTableBtn.addEventListener("click", async() => {
         displayAllTables();
         createTableBtn.style.display = "none";
     }
+    createTableBtn.style.display = "none";
 });
 
 addOrderBtn.addEventListener("click", async() => {
@@ -756,4 +790,32 @@ document.querySelectorAll(".dashboard-tab").forEach((button) => {
             targetForm.classList.add("active");
         }
     });
+});
+refreshBtn.addEventListener("click", async() => {
+    try {
+        await utilities.fetchMenu();
+        await utilities.fetchCustomers();
+        await utilities.fetchCards();
+        await utilities.fetchLocation();
+        await utilities.fetchBill();
+        await utilities.fetchOrders();
+        await utilities.fetchTransaction();
+        await utilities.fetchEmployee();
+        await utilities.fetchSchedule();
+        await utilities.fetchReview();
+        await utilities.overallview();
+
+        // Display an alert at the end
+        alert("Data refetched successfully!");
+    } catch (error) {
+        console.error("Error refetched data:", error);
+        alert("An error occurred while refetching the data. Please try again.");
+    }
+});
+
+window.addEventListener("DOMContentLoaded", () => {
+    const defaultTab = document.querySelector(".dashboard-tab[data-target='paymentForm']");
+    if (defaultTab) {
+        defaultTab.click(); // Simulate a click on the "Bill" button
+    }
 });
