@@ -49,23 +49,24 @@
     <h1></h1>
     <h1></h1>
     <h1></h1>
+    <button class="refresh">Refretching Data</button>
     <h2>DASHBOARD</h2>
     <div class="dashboard">
-        <button class="dashboard-tab" data-target="paymentForm">Payment</button>
+        <button class="dashboard-tab" data-target="paymentForm">Bill</button>
         <button class="dashboard-tab" data-target="orderForm">Order</button>
-        <button class="dashboard-tab" data-target="customerForm">Edit Customer</button>
+        <button class="dashboard-tab" data-target="transactionForm">Business Transaction</button>
         <button class="dashboard-tab" data-target="menuForm">Edit Menu</button>
         <button class="dashboard-tab" data-target="locationForm">Active Location</button>
-        <button class="dashboard-tab" data-target="transactionForm">Business Transaction</button>
-        <button class="dashboard-tab" data-target="cardForm">Edit Customer Card</button>
         <button class="dashboard-tab" data-target="employeeForm">Employee</button>
         <button class="dashboard-tab" data-target="scheduleForm">Employee Schedule</button>
+        <button class="dashboard-tab" data-target="customerForm">Edit Customer</button>
+        <button class="dashboard-tab" data-target="cardForm">Edit Customer Card</button>
         <button class="dashboard-tab" data-target="reviewForm">Review</button>
         <button class="dashboard-tab" data-target="deleteDataTableForm">Delete All Tables</button>
     </div>
     <div class="forms-container">
         <div class="form-container hidden" id="orderForm">
-            <h2>Order List</h2>
+            <h2>Order List (2024-12-05)</h2>
             <table id="order_table" style="display: none">
                 <thead>
                     <tr>
@@ -240,7 +241,7 @@
     </div>
     <div class="forms-container">
         <div class="form-container hidden" id="cardForm">
-            <h2>Card Info</h2>
+            <h2>Customer Card Information</h2>
             <table id="card_table" style="display: none">
                 <thead>
                     <tr>

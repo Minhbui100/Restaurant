@@ -1,0 +1,89 @@
+select * from menu order by name;
+select * from menu order by name;
+SELECT * FROM customers order by name;
+SELECT * FROM cards order by name;
+select * from location order by name;
+select * from bill order by bill_id;
+select * from orders;
+SELECT * FROM transaction;
+select * from employee order by location_name, name;
+select * from schedule order by ssn;
+select * from review order by reviewdate, location_name;
+
+WITH total_balance AS (
+  SELECT 
+    COALESCE(MAX(business_balance) - 5000.00, 0) AS business_balance
+  FROM transaction
+)
+SELECT 
+  (SELECT COUNT(*) FROM bill) AS num_bills,
+  tb.business_balance,
+  (SELECT COUNT(*) FROM location) AS num_locations
+FROM total_balance tb;
+
+select * from menu order by name;
+select * from menu order by name;
+SELECT * FROM customers order by name;
+SELECT * FROM cards order by name;
+select * from location order by name;
+select * from bill order by bill_id;
+select * from orders;
+SELECT * FROM transaction;
+select * from employee order by location_name, name;
+select * from schedule order by ssn;
+select * from review order by reviewdate, location_name;
+
+WITH total_balance AS (
+  SELECT 
+    COALESCE(MAX(business_balance) - 5000.00, 0) AS business_balance
+  FROM transaction
+)
+SELECT 
+  (SELECT COUNT(*) FROM bill) AS num_bills,
+  tb.business_balance,
+  (SELECT COUNT(*) FROM location) AS num_locations
+FROM total_balance tb;
+
+select * from menu order by name;
+SELECT * FROM customers order by name;
+SELECT * FROM cards order by name;
+select * from location order by name;
+select * from bill order by bill_id;
+select * from orders;
+SELECT * FROM transaction;
+select * from employee order by location_name, name;
+select * from schedule order by ssn;
+select * from review order by reviewdate, location_name;
+
+WITH total_balance AS (
+  SELECT 
+    COALESCE(MAX(business_balance) - 5000.00, 0) AS business_balance
+  FROM transaction
+)
+SELECT 
+  (SELECT COUNT(*) FROM bill) AS num_bills,
+  tb.business_balance,
+  (SELECT COUNT(*) FROM location) AS num_locations
+FROM total_balance tb;
+
+SELECT * FROM customers order by name;
+SELECT * FROM cards order by name;
+select * from location order by name;
+select * from bill order by bill_id;
+select * from orders;
+SELECT * FROM transaction;
+select * from employee order by location_name, name;
+select * from schedule order by ssn;
+select * from review order by reviewdate, location_name;
+
+WITH total_balance AS (
+  SELECT 
+    COALESCE(MAX(business_balance) - 5000.00, 0) AS business_balance
+  FROM transaction
+)
+SELECT 
+  (SELECT COUNT(*) FROM bill) AS num_bills,
+  tb.business_balance,
+  (SELECT COUNT(*) FROM location) AS num_locations
+FROM total_balance tb;
+

@@ -1,32 +1,34 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
+
+<head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Restaurant Order</title>
     <link rel="stylesheet" href="./style.css" />
-  </head>
-  <body>
+</head>
+
+<body>
     <!-- Restaurant Name -->
     <header>
-      <h1>Restaurant Name</h1>
-      <button id="simulationBtn">Simulation 100 customers</button>
+        <h1>National Park Fast Food Restaurant</h1>
+        <button id="simulationBtn">Simulation 100 Bills</button>
     </header>
 
     <!-- Restaurant Menu -->
     <table id="menu-table">
-      <thead>
-        <tr>
-          <th>Image</th>
-          <th>Name</th>
-          <th>Price</th>
-          <th>Status</th>
-          <th>Add Order</th>
-        </tr>
-      </thead>
-      <tbody>
-        <!-- Menu items will be inserted dynamically -->
-      </tbody>
+        <thead>
+            <tr>
+                <th>Image</th>
+                <th>Name</th>
+                <th>Price</th>
+                <th>Status</th>
+                <th>Add Order</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Menu items will be inserted dynamically -->
+        </tbody>
     </table>
 
     <!-- Shopping Cart Button -->
@@ -34,41 +36,41 @@
 
     <!-- Shopping Cart Modal -->
     <div id="cart-modal" class="modal hidden">
-      <div class="modal-content">
-        <h3>Your Shopping Cart</h3>
-        <table id="cart-table">
-          <thead>
-            <tr>
-              <th>Item</th>
-              <th>Quantity</th>
-              <th>Price</th>
-              <th>Total</th>
-              <th>Remove</th>
-            </tr>
-          </thead>
-          <tbody>
-            <!-- Cart items will be inserted dynamically -->
-          </tbody>
-        </table>
-        <p id="total">Total:</p>
-        <button id="checkout-btn">Proceed to Checkout</button>
-        <button id="exit-cart-btn">Exit</button>
-      </div>
+        <div class="modal-content">
+            <h3>Your Shopping Cart</h3>
+            <table id="cart-table">
+                <thead>
+                    <tr>
+                        <th>Item</th>
+                        <th>Quantity</th>
+                        <th>Price</th>
+                        <th>Total</th>
+                        <th>Remove</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Cart items will be inserted dynamically -->
+                </tbody>
+            </table>
+            <p id="total">Total:</p>
+            <button id="checkout-btn">Proceed to Checkout</button>
+            <button id="exit-cart-btn">Exit</button>
+        </div>
     </div>
 
     <!-- Checkout Modal -->
     <div id="checkout-modal" class="modal hidden">
-      <div class="modal-content">
-        <h2>Checkout</h2>
-        <form id="checkout-form">
-          <label for="customer-name">Name:</label>
-          <input type="text" id="customer-name" required /><br />
+        <div class="modal-content">
+            <h2>Checkout</h2>
+            <form id="checkout-form">
+                <label for="customer-name">Name:</label>
+                <input type="text" id="customer-name" required /><br />
 
-          <label for="phone-number">Phone:</label>
-          <input type="tel" id="phone-number" required /><br />
+                <label for="phone-number">Phone:</label>
+                <input type="tel" id="phone-number" required /><br />
 
-          <label for="payment-method">Payment Method:</label>
-          <select id="payment-method" required>
+                <label for="payment-method">Payment Method:</label>
+                <select id="payment-method" required>
             <option value="card">Card</option>
             <option value="cash">Cash</option></select
           ><br />
